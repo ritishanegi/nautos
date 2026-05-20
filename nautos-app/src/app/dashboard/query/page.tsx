@@ -264,9 +264,14 @@ export default function QueryPage() {
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = Math.min(e.target.scrollHeight, 128) + "px";
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Ask a question about your documents..."
+              aria-label="Ask a question about your documents"
               disabled={streaming}
               rows={1}
               className="flex-1 resize-none bg-transparent px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 max-h-32"

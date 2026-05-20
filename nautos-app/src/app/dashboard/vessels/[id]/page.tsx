@@ -233,11 +233,12 @@ export default function VesselDetailPage() {
                     </div>
                   </div>
                   <Badge
-                    variant={
-                      doc.ocrStatus === "complete" ? "default" :
-                      doc.ocrStatus === "failed" ? "destructive" : "secondary"
-                    }
-                    className="text-[10px]"
+                    variant="outline"
+                    className={`text-[10px] ${
+                      doc.ocrStatus === "complete" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                      doc.ocrStatus === "failed" ? "bg-destructive/10 text-destructive border-destructive/20" :
+                      "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                    }`}
                   >
                     {doc.ocrStatus}
                   </Badge>

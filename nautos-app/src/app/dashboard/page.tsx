@@ -14,6 +14,7 @@ import {
   Upload,
   Anchor,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 
 interface User {
@@ -41,7 +42,7 @@ export default function DashboardPage() {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="flex items-center gap-3 text-muted-foreground">
-          <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <Loader2 className="size-5 animate-spin" />
           Loading...
         </div>
       </div>

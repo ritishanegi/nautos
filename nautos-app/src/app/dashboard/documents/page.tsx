@@ -42,11 +42,11 @@ interface Document {
   createdAt: string;
 }
 
-const STATUS_STYLES: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-  pending: { variant: "outline", label: "Pending" },
-  processing: { variant: "secondary", label: "Processing" },
-  complete: { variant: "default", label: "Complete" },
-  failed: { variant: "destructive", label: "Failed" },
+const STATUS_STYLES: Record<string, { className: string; label: string }> = {
+  pending: { className: "bg-amber-500/10 text-amber-400 border-amber-500/20", label: "Pending" },
+  processing: { className: "bg-blue-500/10 text-blue-400 border-blue-500/20", label: "Processing" },
+  complete: { className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", label: "Complete" },
+  failed: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Failed" },
 };
 
 const DOC_TYPES = [
@@ -157,7 +157,7 @@ export default function DocumentsPage() {
                       {doc.docType.replace(/_/g, " ")}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={status.variant} className="text-[11px]">
+                      <Badge variant="outline" className={`text-[11px] ${status.className}`}>
                         {status.label}
                       </Badge>
                     </TableCell>
