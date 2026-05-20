@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "NAUTOS AI",
@@ -13,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#06b6d4",
+  themeColor: "#0891b2",
   width: "device-width",
   initialScale: 1,
 };
@@ -24,9 +31,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased">
-        {children}
+    <html lang="en" className="dark">
+      <body className={`${inter.variable} font-sans min-h-screen bg-background text-foreground antialiased`}>
+        <TooltipProvider delayDuration={300}>
+          {children}
+        </TooltipProvider>
         <script
           dangerouslySetInnerHTML={{
             __html: `

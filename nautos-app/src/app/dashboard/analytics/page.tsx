@@ -1,6 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import {
+  FileText,
+  Ship,
+  Users,
+  MessageSquareText,
+  Zap,
+  Clock,
+  Loader2,
+  BarChart3,
+} from "lucide-react";
 
 interface Overview {
   totalDocuments: number;
@@ -20,6 +32,21 @@ interface DocStatus {
   status: string;
   count: number;
 }
+
+const STAT_CONFIG = [
+  { key: "totalDocuments", label: "Documents", icon: FileText, color: "text-blue-400", bg: "bg-blue-500/10" },
+  { key: "totalVessels", label: "Vessels", icon: Ship, color: "text-amber-400", bg: "bg-amber-500/10" },
+  { key: "totalUsers", label: "Team Members", icon: Users, color: "text-violet-400", bg: "bg-violet-500/10" },
+  { key: "totalQueries", label: "Total Queries", icon: MessageSquareText, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  { key: "queriesToday", label: "Queries Today", icon: Zap, color: "text-primary", bg: "bg-primary/10" },
+];
+
+const STATUS_COLORS: Record<string, string> = {
+  complete: "bg-emerald-500",
+  processing: "bg-blue-500",
+  pending: "bg-amber-500",
+  failed: "bg-destructive",
+};
 
 export default function AnalyticsPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -41,8 +68,8 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <p className="text-slate-400">Loading analytics...</p>
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -50,91 +77,128 @@ export default function AnalyticsPage() {
   const maxDaily = Math.max(...dailyQueries.map((d) => d.count), 1);
 
   return (
-    <div className="p-8">
-      <h2 className="text-2xl font-semibold text-white mb-8">Analytics</h2>
-
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <div>
+        <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+        <p className="text-muted-foreground mt-1">Platform usage and document processing metrics</p>
+      </div>
 
-        {overview && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-            <StatCard label="Documents" value={overview.totalDocuments} />
-            <StatCard label="Vessels" value={overview.totalVessels} />
-            <StatCard label="Team Members" value={overview.totalUsers} />
-            <StatCard label="Total Queries" value={overview.totalQueries} />
-            <StatCard label="Queries Today" value={overview.queriesToday} />
-            <StatCard
-              label="Avg Response"
-              value={overview.avgResponseTimeMs > 0 ? `${(overview.avgResponseTimeMs / 1000).toFixed(1)}s` : "—"}
-            />
-          </div>
-        )}
-
-        {/* Query Volume Chart */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Query Volume (Last 30 Days)</h3>
-          {dailyQueries.length === 0 ? (
-            <p className="text-slate-500 text-sm">No query data yet. Start asking questions to see trends.</p>
-          ) : (
-            <div className="flex items-end gap-1 h-40">
-              {dailyQueries.map((day) => (
-                <div key={day.date} className="flex-1 flex flex-col items-center justify-end h-full">
-                  <div
-                    className="w-full bg-cyan-500/80 rounded-t min-h-[2px] transition-all"
-                    style={{ height: `${(day.count / maxDaily) * 100}%` }}
-                  />
-                  <p className="text-[9px] text-slate-600 mt-1 rotate-[-45deg] origin-top-left whitespace-nowrap">
-                    {new Date(day.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                  </p>
+      {/* Stats row */}
+      {overview && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {STAT_CONFIG.map((stat) => (
+            <Card key={stat.key}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`size-9 rounded-lg ${stat.bg} flex items-center justify-center shrink-0`}>
+                    <stat.icon className={`size-[18px] ${stat.color}`} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    <p className="text-xl font-bold tabular-nums">
+                      {overview[stat.key as keyof Overview]}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
+      )}
 
-        {/* Document Status Breakdown */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Document Processing Status</h3>
-          {docsByStatus.length === 0 ? (
-            <p className="text-slate-500 text-sm">No documents uploaded yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {docsByStatus.map((ds) => {
-                const total = docsByStatus.reduce((sum, d) => sum + d.count, 0);
-                const pct = total > 0 ? (ds.count / total) * 100 : 0;
-                const colors: Record<string, string> = {
-                  complete: "bg-green-500",
-                  processing: "bg-blue-500",
-                  pending: "bg-yellow-500",
-                  failed: "bg-red-500",
-                };
-                return (
-                  <div key={ds.status}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-slate-300 capitalize">{ds.status}</span>
-                      <span className="text-sm text-slate-400">{ds.count} ({pct.toFixed(0)}%)</span>
-                    </div>
-                    <div className="w-full bg-slate-800 rounded-full h-2">
+      {/* Avg response time card */}
+      {overview && (
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="size-9 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+              <Clock className="size-[18px] text-orange-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Average Response Time</p>
+              <p className="text-xl font-bold tabular-nums">
+                {overview.avgResponseTimeMs > 0 ? `${(overview.avgResponseTimeMs / 1000).toFixed(1)}s` : "—"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Query Volume Chart */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="size-4 text-muted-foreground" />
+              Query Volume (30 Days)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dailyQueries.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                No query data yet. Start asking questions to see trends.
+              </p>
+            ) : (
+              <div className="flex items-end gap-[3px] h-40">
+                {dailyQueries.map((day) => (
+                  <div key={day.date} className="flex-1 flex flex-col items-center justify-end h-full group">
+                    <div className="relative w-full">
                       <div
-                        className={`h-2 rounded-full ${colors[ds.status] || "bg-slate-600"}`}
-                        style={{ width: `${pct}%` }}
+                        className="w-full bg-primary/70 hover:bg-primary rounded-t-sm min-h-[2px] transition-all"
+                        style={{ height: `${(day.count / maxDaily) * 140}px` }}
                       />
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:block bg-popover border border-border rounded-md px-2 py-1 text-[10px] whitespace-nowrap shadow-lg z-10">
+                        {day.count} queries
+                        <br />
+                        {new Date(day.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <p className="text-xs text-slate-500 font-medium">{label}</p>
-      <p className="text-2xl font-bold text-white mt-1">{value}</p>
+        {/* Document Status Breakdown */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="size-4 text-muted-foreground" />
+              Document Processing
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {docsByStatus.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                No documents uploaded yet.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {docsByStatus.map((ds) => {
+                  const total = docsByStatus.reduce((sum, d) => sum + d.count, 0);
+                  const pct = total > 0 ? (ds.count / total) * 100 : 0;
+                  return (
+                    <div key={ds.status}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium capitalize">{ds.status}</span>
+                        <span className="text-sm text-muted-foreground tabular-nums">
+                          {ds.count} ({pct.toFixed(0)}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${STATUS_COLORS[ds.status] || "bg-muted-foreground"}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

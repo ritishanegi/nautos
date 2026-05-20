@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Waves, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,64 +39,72 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-white">Sign In</h1>
-          <p className="mt-2 text-slate-400">Access your NAUTOS AI dashboard</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
-              {error}
+      <Card className="relative w-full max-w-md border-border/60 bg-card/80 backdrop-blur-sm shadow-2xl">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto mb-4 size-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Waves className="size-6 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+          <CardDescription>Sign in to your NAUTOS AI dashboard</CardDescription>
+        </CardHeader>
+
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                required
+                placeholder="you@company.com"
+                autoComplete="email"
+              />
             </div>
-          )}
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              placeholder="you@company.com"
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                placeholder="Enter your password"
+                autoComplete="current-password"
+              />
+            </div>
+          </CardContent>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              placeholder="••••••••"
-            />
-          </div>
+          <CardFooter className="flex flex-col gap-4">
+            <Button type="submit" className="w-full h-11" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
+            </Button>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-semibold rounded-lg transition-colors"
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
+            <p className="text-center text-sm text-muted-foreground">
+              Don&apos;t have an account?{" "}
+              <Link href="/auth/register" className="font-medium text-primary hover:text-primary/80 transition-colors">
+                Register your company
+              </Link>
+            </p>
+          </CardFooter>
         </form>
-
-        <p className="text-center text-slate-400 text-sm">
-          Don&apos;t have an account?{" "}
-          <Link href="/auth/register" className="text-cyan-400 hover:text-cyan-300">
-            Register your company
-          </Link>
-        </p>
-      </div>
+      </Card>
     </div>
   );
 }

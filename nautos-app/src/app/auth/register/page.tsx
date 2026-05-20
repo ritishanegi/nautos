@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Waves, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -46,132 +51,95 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4 py-12">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-white">Register</h1>
-          <p className="mt-2 text-slate-400">Set up your company on NAUTOS AI</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
-              {error}
+      <Card className="relative w-full max-w-md border-border/60 bg-card/80 backdrop-blur-sm shadow-2xl">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto mb-4 size-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Waves className="size-6 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
+          <CardDescription>Set up your company on NAUTOS AI</CardDescription>
+        </CardHeader>
+
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Your Name</Label>
+                <Input id="name" name="name" type="text" required minLength={2} placeholder="John Smith" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" name="email" type="email" required placeholder="you@company.com" />
+              </div>
             </div>
-          )}
 
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-1">
-              Your Name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              required
-              minLength={2}
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              placeholder="John Smith"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              placeholder="you@company.com"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="companyName" className="block text-sm font-medium text-slate-300 mb-1">
-              Company Name
-            </label>
-            <input
-              id="companyName"
-              name="companyName"
-              type="text"
-              required
-              minLength={2}
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              placeholder="Acme Shipping Ltd"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="subdomain" className="block text-sm font-medium text-slate-300 mb-1">
-              Subdomain
-            </label>
-            <div className="flex items-center">
-              <input
-                id="subdomain"
-                name="subdomain"
-                type="text"
-                required
-                minLength={3}
-                maxLength={63}
-                pattern="[a-z0-9-]+"
-                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-l-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                placeholder="acme-shipping"
-              />
-              <span className="px-3 py-3 bg-slate-700 border border-slate-600 rounded-r-lg text-slate-400 text-sm">
-                .nautos.ai
-              </span>
+            <div className="space-y-2">
+              <Label htmlFor="companyName">Company Name</Label>
+              <Input id="companyName" name="companyName" type="text" required minLength={2} placeholder="Acme Shipping Ltd" />
             </div>
-          </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              placeholder="Min 8 characters"
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="subdomain">Subdomain</Label>
+              <div className="flex">
+                <Input
+                  id="subdomain"
+                  name="subdomain"
+                  type="text"
+                  required
+                  minLength={3}
+                  maxLength={63}
+                  pattern="[a-z0-9-]+"
+                  placeholder="acme-shipping"
+                  className="rounded-r-none border-r-0"
+                />
+                <div className="flex items-center px-3 rounded-r-md border border-input bg-muted text-sm text-muted-foreground">
+                  .nautos.ai
+                </div>
+              </div>
+            </div>
 
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-1">
-              Confirm Password
-            </label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              required
-              minLength={8}
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              placeholder="Repeat password"
-            />
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input id="password" name="password" type="password" required minLength={8} placeholder="Min 8 chars" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm</Label>
+                <Input id="confirmPassword" name="confirmPassword" type="password" required minLength={8} placeholder="Repeat" />
+              </div>
+            </div>
+          </CardContent>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-semibold rounded-lg transition-colors"
-          >
-            {loading ? "Creating account..." : "Create Account"}
-          </button>
+          <CardFooter className="flex flex-col gap-4">
+            <Button type="submit" className="w-full h-11" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                "Create Account"
+              )}
+            </Button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              Already have an account?{" "}
+              <Link href="/auth/login" className="font-medium text-primary hover:text-primary/80 transition-colors">
+                Sign in
+              </Link>
+            </p>
+          </CardFooter>
         </form>
-
-        <p className="text-center text-slate-400 text-sm">
-          Already have an account?{" "}
-          <Link href="/auth/login" className="text-cyan-400 hover:text-cyan-300">
-            Sign in
-          </Link>
-        </p>
-      </div>
+      </Card>
     </div>
   );
 }

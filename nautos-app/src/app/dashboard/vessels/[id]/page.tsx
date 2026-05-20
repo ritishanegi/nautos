@@ -3,6 +3,34 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Ship,
+  ChevronLeft,
+  Plus,
+  Anchor,
+  Flag,
+  MapPin,
+  Clock,
+  Wrench,
+  FileText,
+  Loader2,
+  AlertCircle,
+  Upload,
+} from "lucide-react";
 
 interface Vessel {
   id: string;
@@ -47,9 +75,7 @@ export default function VesselDetailPage() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    load();
-  }, [id]);
+  useEffect(() => { load(); }, [id]);
 
   async function handleAddEquipment(eq: { manufacturer: string; modelType: string; serialNumber: string }) {
     const res = await fetch("/api/equipment", {
@@ -65,191 +91,218 @@ export default function VesselDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <p className="text-slate-400">Loading...</p>
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (!vessel) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <p className="text-red-400">Vessel not found</p>
+      <div className="flex-1 flex flex-col items-center justify-center gap-4">
+        <AlertCircle className="size-10 text-destructive" />
+        <p className="text-muted-foreground">Vessel not found</p>
+        <Button variant="outline" asChild>
+          <Link href="/dashboard/vessels">Back to Fleet</Link>
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <nav className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/dashboard/vessels" className="text-slate-400 hover:text-white">&larr; Vessels</Link>
-        <span className="text-slate-600">/</span>
-        <span className="text-white font-medium">{vessel.name}</span>
-      </nav>
+    <div className="p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm">
+        <Link href="/dashboard/vessels" className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+          <ChevronLeft className="size-4" />
+          Fleet
+        </Link>
+        <span className="text-muted-foreground">/</span>
+        <span className="font-medium truncate">{vessel.name}</span>
+      </div>
 
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-        {/* Vessel Info */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+      {/* Vessel info */}
+      <Card>
+        <CardHeader>
           <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-white">{vessel.name}</h1>
-              {vessel.imo && <p className="text-slate-400 mt-1">IMO {vessel.imo}</p>}
+            <div className="flex items-start gap-4">
+              <div className="size-12 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                <Ship className="size-6 text-amber-400" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">{vessel.name}</CardTitle>
+                {vessel.imo && (
+                  <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+                    <Anchor className="size-3.5" />
+                    IMO {vessel.imo}
+                  </p>
+                )}
+              </div>
             </div>
-            <span className={`text-xs px-2 py-1 rounded ${vessel.isActive ? "bg-green-500/10 text-green-400" : "bg-slate-700 text-slate-400"}`}>
+            <Badge variant={vessel.isActive ? "default" : "secondary"}>
               {vessel.isActive ? "Active" : "Inactive"}
-            </span>
+            </Badge>
           </div>
-          <div className="grid grid-cols-3 gap-4 mt-4">
-            <div className="bg-slate-800/50 rounded-lg p-3">
-              <p className="text-xs text-slate-500">Type</p>
-              <p className="text-sm text-white mt-1">{vessel.vesselType || "—"}</p>
-            </div>
-            <div className="bg-slate-800/50 rounded-lg p-3">
-              <p className="text-xs text-slate-500">Flag State</p>
-              <p className="text-sm text-white mt-1">{vessel.flagState || "—"}</p>
-            </div>
-            <div className="bg-slate-800/50 rounded-lg p-3">
-              <p className="text-xs text-slate-500">Added</p>
-              <p className="text-sm text-white mt-1">{new Date(vessel.createdAt).toLocaleDateString()}</p>
-            </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Type", value: vessel.vesselType || "—", icon: MapPin },
+              { label: "Flag State", value: vessel.flagState || "—", icon: Flag },
+              { label: "Added", value: new Date(vessel.createdAt).toLocaleDateString(), icon: Clock },
+            ].map((item) => (
+              <div key={item.label} className="rounded-lg border border-border bg-muted/30 p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <item.icon className="size-3.5 text-muted-foreground" />
+                  <p className="text-[11px] text-muted-foreground font-medium">{item.label}</p>
+                </div>
+                <p className="text-sm font-medium">{item.value}</p>
+              </div>
+            ))}
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Equipment */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">Equipment ({equipmentList.length})</h2>
-            <button
-              onClick={() => setShowAddEquipment(true)}
-              className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-lg transition-colors"
-            >
-              Add Equipment
-            </button>
-          </div>
+      {/* Equipment */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Wrench className="size-4 text-muted-foreground" />
+            Equipment ({equipmentList.length})
+          </CardTitle>
+          <Button size="sm" variant="outline" onClick={() => setShowAddEquipment(true)}>
+            <Plus className="size-3.5 mr-1.5" />
+            Add
+          </Button>
+        </CardHeader>
+        <CardContent>
           {equipmentList.length === 0 ? (
-            <p className="text-slate-500 text-sm">No equipment linked to this vessel yet.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No equipment linked to this vessel yet.
+            </p>
           ) : (
             <div className="space-y-2">
               {equipmentList.map((eq) => (
-                <div key={eq.id} className="flex items-center justify-between bg-slate-800/50 rounded-lg px-4 py-3">
+                <div key={eq.id} className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3">
                   <div>
-                    <p className="text-white text-sm font-medium">{eq.manufacturer} — {eq.modelType}</p>
-                    {eq.serialNumber && <p className="text-slate-500 text-xs">S/N: {eq.serialNumber}</p>}
+                    <p className="text-sm font-medium">{eq.manufacturer} — {eq.modelType}</p>
+                    {eq.serialNumber && (
+                      <p className="text-xs text-muted-foreground mt-0.5">S/N: {eq.serialNumber}</p>
+                    )}
                   </div>
+                  <Wrench className="size-4 text-muted-foreground" />
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Documents */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">Documents ({documents.length})</h2>
-            <Link
-              href="/dashboard/documents"
-              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg transition-colors"
-            >
-              Upload New
+      {/* Documents */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="size-4 text-muted-foreground" />
+            Documents ({documents.length})
+          </CardTitle>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/dashboard/documents">
+              <Upload className="size-3.5 mr-1.5" />
+              Upload
             </Link>
-          </div>
+          </Button>
+        </CardHeader>
+        <CardContent>
           {documents.length === 0 ? (
-            <p className="text-slate-500 text-sm">No documents linked to this vessel yet.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No documents linked to this vessel yet.
+            </p>
           ) : (
             <div className="space-y-2">
               {documents.map((doc) => (
                 <Link
                   key={doc.id}
                   href={`/dashboard/documents/${doc.id}`}
-                  className="flex items-center justify-between bg-slate-800/50 rounded-lg px-4 py-3 hover:bg-slate-800 transition-colors"
+                  className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3 hover:bg-muted/40 transition-colors"
                 >
-                  <div>
-                    <p className="text-white text-sm">{doc.title}</p>
-                    <p className="text-slate-500 text-xs">{doc.docType.replace(/_/g, " ")}</p>
+                  <div className="flex items-center gap-3">
+                    <FileText className="size-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{doc.title}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{doc.docType.replace(/_/g, " ")}</p>
+                    </div>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded ${
-                    doc.ocrStatus === "complete" ? "bg-green-500/10 text-green-400" :
-                    doc.ocrStatus === "failed" ? "bg-red-500/10 text-red-400" :
-                    "bg-yellow-500/10 text-yellow-400"
-                  }`}>
+                  <Badge
+                    variant={
+                      doc.ocrStatus === "complete" ? "default" :
+                      doc.ocrStatus === "failed" ? "destructive" : "secondary"
+                    }
+                    className="text-[10px]"
+                  >
                     {doc.ocrStatus}
-                  </span>
+                  </Badge>
                 </Link>
               ))}
             </div>
           )}
-        </div>
-      </main>
+        </CardContent>
+      </Card>
 
-      {showAddEquipment && (
-        <AddEquipmentModal onClose={() => setShowAddEquipment(false)} onAdd={handleAddEquipment} />
-      )}
+      {/* Add Equipment Dialog */}
+      <AddEquipmentDialog
+        open={showAddEquipment}
+        onOpenChange={setShowAddEquipment}
+        onAdd={handleAddEquipment}
+      />
     </div>
   );
 }
 
-function AddEquipmentModal({
-  onClose,
+function AddEquipmentDialog({
+  open,
+  onOpenChange,
   onAdd,
 }: {
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onAdd: (eq: { manufacturer: string; modelType: string; serialNumber: string }) => void;
 }) {
   const [manufacturer, setManufacturer] = useState("");
   const [modelType, setModelType] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
 
+  function reset() { setManufacturer(""); setModelType(""); setSerialNumber(""); }
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-white">Add Equipment</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">&times;</button>
-        </div>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add Equipment</DialogTitle>
+          <DialogDescription>Link equipment to this vessel</DialogDescription>
+        </DialogHeader>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Manufacturer *</label>
-            <input
-              value={manufacturer}
-              onChange={(e) => setManufacturer(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="MAN B&W"
-            />
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Manufacturer *</Label>
+            <Input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} placeholder="MAN B&W" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Model / Type *</label>
-            <input
-              value={modelType}
-              onChange={(e) => setModelType(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="6S60ME-C8.5"
-            />
+          <div className="space-y-2">
+            <Label>Model / Type *</Label>
+            <Input value={modelType} onChange={(e) => setModelType(e.target.value)} placeholder="6S60ME-C8.5" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Serial Number</label>
-            <input
-              value={serialNumber}
-              onChange={(e) => setSerialNumber(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="ME-C8-2024-0147"
-            />
+          <div className="space-y-2">
+            <Label>Serial Number</Label>
+            <Input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="ME-C8-2024-0147" />
           </div>
         </div>
 
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-800 transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={() => manufacturer && modelType && onAdd({ manufacturer, modelType, serialNumber })}
-            disabled={!manufacturer || !modelType}
-            className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-medium rounded-lg transition-colors"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => { if (manufacturer && modelType) { onAdd({ manufacturer, modelType, serialNumber }); reset(); } }} disabled={!manufacturer || !modelType}>
             Add Equipment
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -2,6 +2,27 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Ship, Plus, Anchor, MapPin, Flag, ArrowRight, Loader2 } from "lucide-react";
 
 interface Vessel {
   id: string;
@@ -12,6 +33,11 @@ interface Vessel {
   isActive: boolean;
   createdAt: string;
 }
+
+const VESSEL_TYPES = [
+  "Bulk Carrier", "Container Ship", "Tanker", "LNG Carrier",
+  "Offshore Supply", "Tugboat", "Passenger", "General Cargo", "FPSO", "Other",
+];
 
 export default function VesselsPage() {
   const [vessels, setVessels] = useState<Vessel[]>([]);
@@ -44,64 +70,97 @@ export default function VesselsPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-white">Fleet Vessels</h2>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg transition-colors"
-        >
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Fleet Vessels</h1>
+          <p className="text-muted-foreground mt-1">Manage your fleet and linked equipment</p>
+        </div>
+        <Button onClick={() => setShowAdd(true)}>
+          <Plus className="size-4 mr-2" />
           Add Vessel
-        </button>
+        </Button>
       </div>
 
-      <div>
-
-        {loading ? (
-          <p className="text-slate-400">Loading...</p>
-        ) : vessels.length === 0 ? (
-          <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
-            <p className="text-slate-400 mb-4">No vessels added yet</p>
-            <button
-              onClick={() => setShowAdd(true)}
-              className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-lg transition-colors"
-            >
+      {loading ? (
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : vessels.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-20">
+            <div className="size-16 rounded-2xl bg-amber-500/10 flex items-center justify-center mb-4">
+              <Ship className="size-8 text-amber-400" />
+            </div>
+            <h3 className="text-lg font-semibold mb-1">No vessels yet</h3>
+            <p className="text-muted-foreground text-sm mb-6">Add your first vessel to start organizing documents by ship</p>
+            <Button onClick={() => setShowAdd(true)}>
+              <Plus className="size-4 mr-2" />
               Add Your First Vessel
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {vessels.map((v) => (
-              <Link
-                key={v.id}
-                href={`/dashboard/vessels/${v.id}`}
-                className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-cyan-500/50 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-white">{v.name}</h3>
-                  <span className={`text-xs px-2 py-1 rounded ${v.isActive ? "bg-green-500/10 text-green-400" : "bg-slate-700 text-slate-400"}`}>
-                    {v.isActive ? "Active" : "Inactive"}
-                  </span>
-                </div>
-                {v.imo && <p className="text-sm text-slate-400">IMO {v.imo}</p>}
-                {v.vesselType && <p className="text-sm text-slate-500 mt-1">{v.vesselType}</p>}
-                {v.flagState && <p className="text-sm text-slate-500">{v.flagState}</p>}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {vessels.map((v) => (
+            <Link key={v.id} href={`/dashboard/vessels/${v.id}`}>
+              <Card className="h-full hover:border-primary/30 transition-all duration-200 group cursor-pointer">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                        <Ship className="size-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">{v.name}</h3>
+                        {v.imo && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Anchor className="size-3" />
+                            IMO {v.imo}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant={v.isActive ? "default" : "secondary"} className="text-[10px]">
+                      {v.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    {v.vesselType && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="size-3" />
+                        {v.vesselType}
+                      </span>
+                    )}
+                    {v.flagState && (
+                      <span className="flex items-center gap-1">
+                        <Flag className="size-3" />
+                        {v.flagState}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-end mt-3">
+                    <ArrowRight className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
 
-      {showAdd && <AddVesselModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
+      <AddVesselDialog open={showAdd} onOpenChange={setShowAdd} onAdd={handleAdd} />
     </div>
   );
 }
 
-function AddVesselModal({
-  onClose,
+function AddVesselDialog({
+  open,
+  onOpenChange,
   onAdd,
 }: {
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onAdd: (v: { name: string; imo: string; vesselType: string; flagState: string }) => void;
 }) {
   const [name, setName] = useState("");
@@ -109,77 +168,51 @@ function AddVesselModal({
   const [vesselType, setVesselType] = useState("");
   const [flagState, setFlagState] = useState("");
 
+  function reset() { setName(""); setImo(""); setVesselType(""); setFlagState(""); }
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-white">Add Vessel</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">&times;</button>
-        </div>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add Vessel</DialogTitle>
+          <DialogDescription>Add a new vessel to your fleet</DialogDescription>
+        </DialogHeader>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Vessel Name *</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="M/V Pacific Star"
-            />
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Vessel Name *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="M/V Pacific Star" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">IMO Number</label>
-            <input
-              value={imo}
-              onChange={(e) => setImo(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="9274848"
-            />
+          <div className="space-y-2">
+            <Label>IMO Number</Label>
+            <Input value={imo} onChange={(e) => setImo(e.target.value)} placeholder="9274848" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Vessel Type</label>
-            <select
-              value={vesselType}
-              onChange={(e) => setVesselType(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <option value="">Select type</option>
-              <option value="Bulk Carrier">Bulk Carrier</option>
-              <option value="Container Ship">Container Ship</option>
-              <option value="Tanker">Tanker</option>
-              <option value="LNG Carrier">LNG Carrier</option>
-              <option value="Offshore Supply">Offshore Supply</option>
-              <option value="Tugboat">Tugboat</option>
-              <option value="Passenger">Passenger</option>
-              <option value="General Cargo">General Cargo</option>
-              <option value="FPSO">FPSO</option>
-              <option value="Other">Other</option>
-            </select>
+          <div className="space-y-2">
+            <Label>Vessel Type</Label>
+            <Select value={vesselType} onValueChange={setVesselType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                {VESSEL_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Flag State</label>
-            <input
-              value={flagState}
-              onChange={(e) => setFlagState(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="Panama"
-            />
+          <div className="space-y-2">
+            <Label>Flag State</Label>
+            <Input value={flagState} onChange={(e) => setFlagState(e.target.value)} placeholder="Panama" />
           </div>
         </div>
 
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-800 transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={() => name && onAdd({ name, imo, vesselType, flagState })}
-            disabled={!name}
-            className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-medium rounded-lg transition-colors"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => { if (name) { onAdd({ name, imo, vesselType, flagState }); reset(); } }} disabled={!name}>
             Add Vessel
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
