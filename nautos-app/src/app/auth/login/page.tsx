@@ -6,8 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Waves, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,72 +38,64 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
+    <div className="min-h-screen flex">
+      {/* Left — brand panel */}
+      <div className="hidden lg:flex lg:w-[480px] bg-primary text-primary-foreground flex-col justify-between p-10">
+        <span className="text-[15px] font-semibold tracking-tight">nautos</span>
+        <div>
+          <p className="text-2xl font-semibold leading-snug">
+            Maritime document
+            <br />
+            intelligence.
+          </p>
+          <p className="mt-3 text-sm text-primary-foreground/60 leading-relaxed">
+            Upload manuals. Ask questions. Get answers with page citations.
+          </p>
+        </div>
+        <p className="text-xs text-primary-foreground/40">Martech Systems</p>
+      </div>
 
-      <Card className="relative w-full max-w-md border-border/60 bg-card/80 backdrop-blur-sm shadow-2xl">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-4 size-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Waves className="size-6 text-primary" />
+      {/* Right — form */}
+      <div className="flex-1 flex items-center justify-center px-6">
+        <div className="w-full max-w-sm">
+          <div className="mb-8">
+            <h1 className="text-xl font-semibold text-foreground">Log in</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Enter your credentials to access your dashboard.
+            </p>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-          <CardDescription>Sign in to your NAUTOS AI dashboard</CardDescription>
-        </CardHeader>
 
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
                 {error}
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                required
-                placeholder="you@company.com"
-                autoComplete="email"
-              />
+              <Input id="email" name="email" type="email" required placeholder="you@company.com" autoComplete="email" />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                required
-                placeholder="Enter your password"
-                autoComplete="current-password"
-              />
+              <Input id="password" name="password" type="password" required placeholder="Password" autoComplete="current-password" />
             </div>
-          </CardContent>
 
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full h-11" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                "Sign In"
-              )}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {loading ? "Logging in..." : "Log in"}
             </Button>
+          </form>
 
-            <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link href="/auth/register" className="font-medium text-primary hover:text-primary/80 transition-colors">
-                Register your company
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            No account?{" "}
+            <Link href="/auth/register" className="font-medium text-foreground hover:underline">
+              Register your company
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

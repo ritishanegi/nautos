@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-const inter = Inter({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
@@ -14,13 +14,13 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "NAUTOS AI",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0891b2",
+  themeColor: "#0f2b5b",
   width: "device-width",
   initialScale: 1,
 };
@@ -31,8 +31,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} font-sans min-h-screen bg-background text-foreground antialiased`}>
+    <html lang="en">
+      <body className={`${jakarta.variable} font-sans`}>
         <TooltipProvider delayDuration={300}>
           {children}
         </TooltipProvider>

@@ -3,8 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -13,15 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Send,
-  Sparkles,
-  User,
-  Bot,
-  FileText,
-  Loader2,
-  Ship,
-} from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 
 interface Source {
   document_id: string;
@@ -41,11 +31,11 @@ interface VesselOption {
   name: string;
 }
 
-const SUGGESTED_QUESTIONS = [
+const SUGGESTED = [
   "What is the overhaul interval for the turbocharger?",
   "List the spare parts for the main engine fuel injector",
-  "What are the safety procedures for enclosed space entry?",
-  "Find the torque specifications for cylinder head bolts",
+  "Safety procedures for enclosed space entry",
+  "Torque specifications for cylinder head bolts",
 ];
 
 export default function QueryPage() {
@@ -74,12 +64,12 @@ export default function QueryPage() {
 
     const question = input.trim();
     setInput("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
     setMessages((prev) => [...prev, { role: "user", content: question }]);
     setStreaming(true);
 
     let assistantContent = "";
     let sources: Source[] = [];
-
     setMessages((prev) => [...prev, { role: "assistant", content: "", sources: [] }]);
 
     try {
@@ -92,10 +82,7 @@ export default function QueryPage() {
       if (!res.ok || !res.body) {
         setMessages((prev) => {
           const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: "assistant",
-            content: "Sorry, something went wrong. Please try again.",
-          };
+          updated[updated.length - 1] = { role: "assistant", content: "Something went wrong. Please try again." };
           return updated;
         });
         setStreaming(false);
@@ -109,7 +96,6 @@ export default function QueryPage() {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
@@ -117,7 +103,6 @@ export default function QueryPage() {
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const data = JSON.parse(line.slice(6));
-
           if (data.type === "text") {
             assistantContent += data.content;
             setMessages((prev) => {
@@ -138,36 +123,25 @@ export default function QueryPage() {
     } catch {
       setMessages((prev) => {
         const updated = [...prev];
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: "Connection error. Please check your network and try again.",
-        };
+        updated[updated.length - 1] = { role: "assistant", content: "Connection error. Check your network and try again." };
         return updated;
       });
     }
-
     setStreaming(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
   }
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b border-border px-6 h-14 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5">
-          <Sparkles className="size-[18px] text-primary" />
-          <h1 className="text-sm font-semibold">Ask AI</h1>
-        </div>
+      <div className="border-b border-border px-5 h-12 flex items-center justify-between shrink-0">
+        <h1 className="text-sm font-semibold text-foreground">Ask AI</h1>
         <Select value={vesselId} onValueChange={setVesselId}>
-          <SelectTrigger className="w-48 h-8 text-xs">
-            <Ship className="size-3.5 mr-1.5 text-muted-foreground" />
-            <SelectValue placeholder="Select vessel" />
+          <SelectTrigger className="w-44 h-7 text-xs">
+            <SelectValue placeholder="All vessels" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All vessels</SelectItem>
@@ -180,23 +154,19 @@ export default function QueryPage() {
 
       {/* Messages */}
       <ScrollArea className="flex-1">
-        <div className="max-w-3xl mx-auto px-6 py-6 space-y-6">
+        <div className="max-w-2xl mx-auto px-5 py-6 space-y-5">
           {messages.length === 0 && (
-            <div className="text-center py-20">
-              <div className="mx-auto mb-6 size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Sparkles className="size-8 text-primary" />
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Ask anything about your documents</h2>
-              <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                Ask about maintenance procedures, part numbers, inspection intervals,
-                or any technical detail in your uploaded manuals.
+            <div className="py-16">
+              <h2 className="text-lg font-semibold text-foreground">What do you want to know?</h2>
+              <p className="text-sm text-muted-foreground mt-1 mb-6">
+                Ask about maintenance procedures, part numbers, or any technical detail in your documents.
               </p>
-              <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-2xl mx-auto">
-                {SUGGESTED_QUESTIONS.map((q) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {SUGGESTED.map((q) => (
                   <button
                     key={q}
                     onClick={() => { setInput(q); inputRef.current?.focus(); }}
-                    className="text-left px-4 py-3 rounded-lg border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-all duration-150"
+                    className="text-left px-3 py-2.5 rounded-md border border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
                   >
                     {q}
                   </button>
@@ -206,49 +176,32 @@ export default function QueryPage() {
           )}
 
           {messages.map((msg, i) => (
-            <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
-              {msg.role === "assistant" && (
-                <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Bot className="size-4 text-primary" />
+            <div key={i}>
+              {msg.role === "user" ? (
+                <div className="flex justify-end">
+                  <div className="max-w-[80%] rounded-lg bg-primary text-primary-foreground px-3.5 py-2.5 text-sm">
+                    {msg.content}
+                  </div>
                 </div>
-              )}
-              <div className={`max-w-[85%] ${msg.role === "user" ? "order-first" : ""}`}>
-                <Card className={`px-4 py-3 ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card"
-                }`}>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">
+              ) : (
+                <div className="max-w-[90%]">
+                  <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
                     {msg.content || (streaming && i === messages.length - 1 ? (
-                      <span className="flex items-center gap-2 text-muted-foreground">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
                         <Loader2 className="size-3.5 animate-spin" />
                         Thinking...
                       </span>
                     ) : "")}
-                  </p>
+                  </div>
                   {msg.sources && msg.sources.length > 0 && (
-                    <>
-                      <Separator className="my-3" />
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-                          <FileText className="size-3" />
-                          Sources
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {msg.sources.map((src, si) => (
-                            <Badge key={si} variant="secondary" className="text-[11px] font-normal">
-                              {src.title} {src.page_number ? `p.${src.page_number}` : ""}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {msg.sources.map((src, si) => (
+                        <Badge key={si} variant="secondary" className="text-[11px] font-normal">
+                          {src.title}{src.page_number ? `, p.${src.page_number}` : ""}
+                        </Badge>
+                      ))}
+                    </div>
                   )}
-                </Card>
-              </div>
-              {msg.role === "user" && (
-                <div className="size-8 rounded-lg bg-secondary flex items-center justify-center shrink-0 mt-0.5">
-                  <User className="size-4 text-secondary-foreground" />
                 </div>
               )}
             </div>
@@ -259,40 +212,34 @@ export default function QueryPage() {
 
       {/* Input */}
       <div className="border-t border-border p-4 shrink-0">
-        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-          <div className="relative flex items-end rounded-xl border border-input bg-card focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent transition-all">
+        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
+          <div className="flex items-end gap-2 rounded-lg border border-input bg-background focus-within:ring-1 focus-within:ring-ring">
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
                 e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 128) + "px";
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question about your documents..."
+              placeholder="Ask a question..."
               aria-label="Ask a question about your documents"
               disabled={streaming}
               rows={1}
-              className="flex-1 resize-none bg-transparent px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 max-h-32"
-              style={{ minHeight: "44px" }}
+              className="flex-1 resize-none bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 max-h-[120px]"
+              style={{ minHeight: "40px" }}
             />
             <Button
               type="submit"
               size="icon"
               disabled={streaming || !input.trim()}
-              className="shrink-0 m-1.5 size-8"
+              className="shrink-0 m-1 size-7"
+              variant="ghost"
             >
-              {streaming ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
+              {streaming ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             </Button>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-2 text-center">
-            AI answers are generated from your uploaded documents. Always verify critical information.
-          </p>
         </form>
       </div>
     </div>

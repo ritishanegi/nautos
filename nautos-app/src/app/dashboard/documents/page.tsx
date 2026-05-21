@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Upload, Plus, CloudUpload, Loader2, FileUp } from "lucide-react";
+import { Plus, Upload, Loader2 } from "lucide-react";
 
 interface Document {
   id: string;
@@ -42,11 +41,11 @@ interface Document {
   createdAt: string;
 }
 
-const STATUS_STYLES: Record<string, { className: string; label: string }> = {
-  pending: { className: "bg-amber-500/10 text-amber-400 border-amber-500/20", label: "Pending" },
-  processing: { className: "bg-blue-500/10 text-blue-400 border-blue-500/20", label: "Processing" },
-  complete: { className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", label: "Complete" },
-  failed: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Failed" },
+const STATUS_STYLE: Record<string, string> = {
+  pending: "bg-amber-50 text-amber-700 border-amber-200",
+  processing: "bg-blue-50 text-blue-700 border-blue-200",
+  complete: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  failed: "bg-red-50 text-red-700 border-red-200",
 };
 
 const DOC_TYPES = [
@@ -74,9 +73,7 @@ export default function DocumentsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
+  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
   async function handleUpload(file: File, title: string, docType: string) {
     setUploading(true);
@@ -85,50 +82,38 @@ export default function DocumentsPage() {
     formData.append("title", title);
     formData.append("docType", docType);
     formData.append("scope", "vessel");
-
     const res = await fetch("/api/documents/upload", { method: "POST", body: formData });
-    if (res.ok) {
-      setShowUpload(false);
-      fetchDocuments();
-    }
+    if (res.ok) { setShowUpload(false); fetchDocuments(); }
     setUploading(false);
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6 lg:p-8 max-w-6xl">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Documents</h1>
-          <p className="text-muted-foreground mt-1">Manage your maritime document library</p>
+          <h1 className="text-lg font-semibold text-foreground">Documents</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage your document library</p>
         </div>
-        <Button onClick={() => setShowUpload(true)}>
-          <Plus className="size-4 mr-2" />
-          Upload Document
+        <Button size="sm" onClick={() => setShowUpload(true)}>
+          <Plus className="size-4 mr-1.5" />
+          Upload
         </Button>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24">
+        <div className="flex justify-center py-20">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : documents.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-20">
-            <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-              <FileText className="size-8 text-primary" />
-            </div>
-            <h3 className="text-lg font-semibold mb-1">No documents yet</h3>
-            <p className="text-muted-foreground text-sm mb-6">
-              Upload your first maritime document to get started
-            </p>
-            <Button onClick={() => setShowUpload(true)}>
-              <Upload className="size-4 mr-2" />
-              Upload Your First Document
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="border border-dashed border-border rounded-lg py-16 text-center">
+          <p className="text-sm text-muted-foreground mb-3">No documents uploaded yet</p>
+          <Button size="sm" variant="outline" onClick={() => setShowUpload(true)}>
+            <Upload className="size-4 mr-1.5" />
+            Upload your first document
+          </Button>
+        </div>
       ) : (
-        <Card>
+        <div className="border border-border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -140,76 +125,46 @@ export default function DocumentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {documents.map((doc) => {
-                const status = STATUS_STYLES[doc.ocrStatus] || STATUS_STYLES.pending;
-                return (
-                  <TableRow key={doc.id} className="cursor-pointer">
-                    <TableCell>
-                      <Link
-                        href={`/dashboard/documents/${doc.id}`}
-                        className="font-medium hover:text-primary transition-colors flex items-center gap-2"
-                      >
-                        <FileText className="size-4 text-muted-foreground shrink-0" />
-                        {doc.title}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {doc.docType.replace(/_/g, " ")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`text-[11px] ${status.className}`}>
-                        {status.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {doc.pageCount ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {new Date(doc.createdAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {documents.map((doc) => (
+                <TableRow key={doc.id}>
+                  <TableCell>
+                    <Link href={`/dashboard/documents/${doc.id}`} className="font-medium text-foreground hover:underline">
+                      {doc.title}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground capitalize">{doc.docType.replace(/_/g, " ")}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={`text-[11px] capitalize ${STATUS_STYLE[doc.ocrStatus] || ""}`}>
+                      {doc.ocrStatus}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground tabular-nums">{doc.pageCount ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{new Date(doc.createdAt).toLocaleDateString()}</TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
-        </Card>
+        </div>
       )}
 
-      <UploadDialog
-        open={showUpload}
-        onOpenChange={setShowUpload}
-        onUpload={handleUpload}
-        uploading={uploading}
-      />
+      <UploadDialog open={showUpload} onOpenChange={setShowUpload} onUpload={handleUpload} uploading={uploading} />
     </div>
   );
 }
 
-function UploadDialog({
-  open,
-  onOpenChange,
-  onUpload,
-  uploading,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onUpload: (file: File, title: string, docType: string) => void;
-  uploading: boolean;
+function UploadDialog({ open, onOpenChange, onUpload, uploading }: {
+  open: boolean; onOpenChange: (v: boolean) => void;
+  onUpload: (file: File, title: string, docType: string) => void; uploading: boolean;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [docType, setDocType] = useState("maintenance_manual");
   const [dragOver, setDragOver] = useState(false);
 
-  function reset() {
-    setFile(null);
-    setTitle("");
-    setDocType("maintenance_manual");
-  }
+  function reset() { setFile(null); setTitle(""); setDocType("maintenance_manual"); }
 
   function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setDragOver(false);
+    e.preventDefault(); setDragOver(false);
     const dropped = e.dataTransfer.files[0];
     if (dropped?.name.toLowerCase().endsWith(".pdf")) {
       setFile(dropped);
@@ -217,100 +172,56 @@ function UploadDialog({
     }
   }
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      setFile(selected);
-      if (!title) setTitle(selected.name.replace(/\.pdf$/i, ""));
-    }
-  }
-
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload Document</DialogTitle>
-          <DialogDescription>Upload a PDF maritime document for AI processing</DialogDescription>
+          <DialogTitle>Upload document</DialogTitle>
+          <DialogDescription>PDF files up to 500MB</DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-4 py-2">
+        <div className="space-y-4">
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              dragOver
-                ? "border-primary bg-primary/5"
-                : file
-                  ? "border-emerald-500/50 bg-emerald-500/5"
-                  : "border-border hover:border-muted-foreground/30"
+            className={`border-2 border-dashed rounded-lg p-6 text-center text-sm transition-colors ${
+              dragOver ? "border-ring bg-muted" : file ? "border-emerald-300 bg-emerald-50" : "border-border"
             }`}
           >
             {file ? (
-              <div className="flex items-center justify-center gap-3">
-                <FileUp className="size-5 text-emerald-500" />
-                <div className="text-left">
-                  <p className="text-sm font-medium">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setFile(null)} className="ml-auto text-xs">
-                  Remove
-                </Button>
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-foreground">{file.name}</span>
+                <button onClick={() => setFile(null)} className="text-xs text-muted-foreground hover:text-foreground">Remove</button>
               </div>
             ) : (
-              <>
-                <CloudUpload className="size-8 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground mb-1">Drag & drop a PDF here, or</p>
-                <label className="cursor-pointer text-sm font-medium text-primary hover:text-primary/80 transition-colors">
-                  browse files
-                  <input type="file" accept=".pdf" onChange={handleFileSelect} className="hidden" />
-                </label>
-                <p className="text-[11px] text-muted-foreground mt-2">PDF files up to 500MB</p>
-              </>
+              <label className="cursor-pointer">
+                <span className="text-muted-foreground">Drop a PDF here or </span>
+                <span className="font-medium text-foreground hover:underline">browse</span>
+                <input type="file" accept=".pdf" onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) { setFile(f); if (!title) setTitle(f.name.replace(/\.pdf$/i, "")); }
+                }} className="hidden" />
+              </label>
             )}
           </div>
-
-          <div className="space-y-2">
-            <Label>Document Title</Label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. MAN B&W Engine Maintenance Manual"
-            />
+          <div className="space-y-1.5">
+            <Label>Title</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Document title" />
           </div>
-
-          <div className="space-y-2">
-            <Label>Document Type</Label>
+          <div className="space-y-1.5">
+            <Label>Type</Label>
             <Select value={docType} onValueChange={setDocType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {DOC_TYPES.map((dt) => (
-                  <SelectItem key={dt.value} value={dt.value}>{dt.label}</SelectItem>
-                ))}
+                {DOC_TYPES.map((dt) => <SelectItem key={dt.value} value={dt.value}>{dt.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
-
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button
-            onClick={() => file && title && onUpload(file, title, docType)}
-            disabled={!file || !title || uploading}
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="size-4 mr-2 animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Upload className="size-4 mr-2" />
-                Upload
-              </>
-            )}
+          <Button onClick={() => file && title && onUpload(file, title, docType)} disabled={!file || !title || uploading}>
+            {uploading ? <><Loader2 className="size-4 mr-1.5 animate-spin" />Uploading...</> : "Upload"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   LayoutDashboard,
@@ -13,8 +11,8 @@ import {
   Ship,
   BarChart3,
   LogOut,
-  Waves,
-  ChevronLeft,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -39,63 +37,47 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200",
-        collapsed ? "w-16" : "w-60"
+        "flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-150 shrink-0",
+        collapsed ? "w-[52px]" : "w-56"
       )}
     >
       {/* Logo */}
-      <div className={cn("flex items-center h-16 border-b border-sidebar-border px-4", collapsed ? "justify-center" : "justify-between")}>
-        <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
-          <div className="size-8 rounded-lg bg-sidebar-primary/10 flex items-center justify-center shrink-0">
-            <Waves className="size-4 text-sidebar-primary" />
-          </div>
-          {!collapsed && (
-            <span className="text-base font-bold tracking-tight text-sidebar-foreground truncate">
-              NAUTOS <span className="text-sidebar-primary">AI</span>
-            </span>
-          )}
-        </Link>
+      <div className={cn(
+        "h-14 flex items-center border-b border-sidebar-border shrink-0",
+        collapsed ? "justify-center px-0" : "justify-between px-4"
+      )}>
         {!collapsed && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-muted-foreground hover:text-foreground shrink-0"
-            onClick={() => setCollapsed(true)}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
+          <Link href="/dashboard" className="text-[15px] font-semibold tracking-tight text-sidebar-primary">
+            nautos
+          </Link>
         )}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="size-7 flex items-center justify-center rounded text-sidebar-foreground/50 hover:text-sidebar-primary hover:bg-sidebar-accent transition-colors"
+        >
+          {collapsed ? <PanelLeft className="size-4" /> : <PanelLeftClose className="size-4" />}
+        </button>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-1">
-        {collapsed && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-full size-10 mb-2 text-muted-foreground hover:text-foreground"
-            onClick={() => setCollapsed(false)}
-          >
-            <ChevronLeft className="size-4 rotate-180" />
-          </Button>
-        )}
+      {/* Nav */}
+      <nav className="flex-1 py-2 px-2 space-y-0.5">
         {navItems.map((item) => {
           const active =
             pathname === item.href ||
             (item.href !== "/dashboard" && pathname.startsWith(item.href));
 
-          const linkContent = (
+          const link = (
             <Link
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] font-medium transition-colors",
                 active
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
                 collapsed && "justify-center px-0"
               )}
             >
-              <item.icon className={cn("size-[18px] shrink-0", active && "text-sidebar-primary")} />
+              <item.icon className="size-[16px] shrink-0" />
               {!collapsed && item.label}
             </Link>
           );
@@ -103,43 +85,39 @@ export default function Sidebar() {
           if (collapsed) {
             return (
               <Tooltip key={item.href}>
-                <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8}>
+                <TooltipTrigger asChild>{link}</TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8} className="text-xs">
                   {item.label}
                 </TooltipContent>
               </Tooltip>
             );
           }
-          return <div key={item.href}>{linkContent}</div>;
+          return <div key={item.href}>{link}</div>;
         })}
       </nav>
 
       {/* Footer */}
-      <div className="p-3">
-        <Separator className="mb-3 bg-sidebar-border" />
+      <div className="px-2 py-2 border-t border-sidebar-border">
         {collapsed ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-full size-10 text-sidebar-foreground/70 hover:text-sidebar-foreground"
+              <button
                 onClick={handleLogout}
+                className="w-full flex items-center justify-center rounded-md py-[7px] text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
               >
-                <LogOut className="size-[18px]" />
-              </Button>
+                <LogOut className="size-[16px]" />
+              </button>
             </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={8}>Sign Out</TooltipContent>
+            <TooltipContent side="right" sideOffset={8} className="text-xs">Sign out</TooltipContent>
           </Tooltip>
         ) : (
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-3 text-sidebar-foreground/70 hover:text-sidebar-foreground h-10 px-3"
+          <button
             onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
           >
-            <LogOut className="size-[18px]" />
-            Sign Out
-          </Button>
+            <LogOut className="size-[16px]" />
+            Sign out
+          </button>
         )}
       </div>
     </aside>
