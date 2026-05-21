@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { documents, ingestionJobs } from "@/lib/db/schema";
 import { uploadToS3, getUploadUrl } from "@/lib/s3";
 import { dispatchCeleryTask } from "@/lib/redis";
+import { rateLimit } from "@/lib/rate-limit";
 import { randomUUID } from "crypto";
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
@@ -12,6 +13,15 @@ export async function POST(req: NextRequest) {
   const tenantId = req.headers.get("x-tenant-id");
   if (!tenantId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit: 20 uploads per tenant per minute
+  const rl = await rateLimit(`upload:${tenantId}`, 20, 60);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many uploads. Try again shortly." },
+      { status: 429, headers: { "Retry-After": String(rl.resetInSeconds) } }
+    );
   }
 
   const contentType = req.headers.get("content-type") || "";

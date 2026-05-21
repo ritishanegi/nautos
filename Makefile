@@ -25,8 +25,11 @@ seed:
 	@echo "Seeding not yet implemented (Sprint 1)"
 
 test:
-	cd nautos-app && pnpm lint
+	cd nautos-app && pnpm lint && pnpm test
 	cd nautos-worker && uv run pytest
+
+test-app:
+	cd nautos-app && pnpm test
 
 test-worker:
 	cd nautos-worker && uv run pytest -v
