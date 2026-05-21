@@ -1,9 +1,36 @@
+import logging
+from contextlib import contextmanager
+
 import psycopg
+from psycopg_pool import ConnectionPool
+
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 
+# Shared connection pool — reused across all worker threads
+_pool: ConnectionPool | None = None
+
+
+def get_pool() -> ConnectionPool:
+    """Lazy-init a connection pool (singleton per process)."""
+    global _pool
+    if _pool is None:
+        _pool = ConnectionPool(
+            conninfo=settings.database_url,
+            min_size=2,
+            max_size=10,
+            open=True,
+        )
+    return _pool
+
+
+@contextmanager
 def get_connection():
-    return psycopg.connect(settings.database_url)
+    """Get a connection from the pool (auto-returned on exit)."""
+    pool = get_pool()
+    with pool.connection() as conn:
+        yield conn
 
 
 def update_job_status(
@@ -14,8 +41,7 @@ def update_job_status(
     processed_pages: int = 0,
     error: str | None = None,
 ):
-    conn = get_connection()
-    try:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             fields = ["status = %s", "progress = %s", "processed_pages = %s"]
             params: list = [status, progress, processed_pages]
@@ -57,26 +83,20 @@ def update_job_status(
                 )
 
         conn.commit()
-    finally:
-        conn.close()
 
 
 def update_page_count(document_id: str, page_count: int):
-    conn = get_connection()
-    try:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE documents SET page_count = %s WHERE id = %s",
                 (page_count, document_id),
             )
         conn.commit()
-    finally:
-        conn.close()
 
 
 def get_document(document_id: str) -> dict | None:
-    conn = get_connection()
-    try:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT id, tenant_id, vessel_id, title, doc_type, scope, s3_key FROM documents WHERE id = %s",
@@ -94,5 +114,3 @@ def get_document(document_id: str) -> dict | None:
                 "scope": row[5],
                 "s3_key": row[6],
             }
-    finally:
-        conn.close()

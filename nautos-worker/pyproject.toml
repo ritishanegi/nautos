@@ -12,6 +12,7 @@ dependencies = [
     "azure-ai-documentintelligence>=1.0.0",
     "elasticsearch[async]>=8.17.0",
     "psycopg[binary]>=3.2.0",
+    "psycopg-pool>=3.2.0",
     "pgvector>=0.3.0",
     "boto3>=1.35.0",
     "pydantic>=2.10.0",

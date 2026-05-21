@@ -9,7 +9,20 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  customType,
 } from "drizzle-orm/pg-core";
+
+// Custom type for pgvector — Drizzle doesn't have native vector support
+const vector = customType<{ data: number[]; driverParam: string }>({
+  dataType() {
+    return "vector(1536)";
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(",")}]`;
+  },
+});
+
+// ─── Core tables ────────────────────────────────────────────────
 
 export const tenants = pgTable("tenants", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -99,6 +112,73 @@ export const documents = pgTable(
   ]
 );
 
+// ─── Embeddings ─────────────────────────────────────────────────
+
+export const embeddings = pgTable(
+  "embeddings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    chunkText: text("chunk_text").notNull(),
+    chunkIndex: integer("chunk_index").notNull(),
+    pageNumber: integer("page_number"),
+    embedding: vector("embedding").notNull(),
+    metadata: jsonb("metadata").default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_embeddings_document").on(table.documentId),
+    index("idx_embeddings_tenant").on(table.tenantId),
+  ]
+);
+
+// ─── Master Library ─────────────────────────────────────────────
+
+export const masterLibrary = pgTable(
+  "master_library",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceDocumentId: uuid("source_document_id").references(() => documents.id),
+    title: varchar("title", { length: 500 }).notNull(),
+    docType: varchar("doc_type", { length: 100 }).notNull(),
+    manufacturer: varchar("manufacturer", { length: 255 }),
+    modelType: varchar("model_type", { length: 255 }),
+    versionYear: varchar("version_year", { length: 20 }),
+    reviewStatus: varchar("review_status", { length: 20 }).notNull().default("pending"),
+    reviewedBy: uuid("reviewed_by").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    supersededBy: uuid("superseded_by"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_master_status").on(table.reviewStatus)]
+);
+
+export const masterEmbeddings = pgTable(
+  "master_embeddings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    masterId: uuid("master_id")
+      .notNull()
+      .references(() => masterLibrary.id, { onDelete: "cascade" }),
+    chunkText: text("chunk_text").notNull(),
+    chunkIndex: integer("chunk_index").notNull(),
+    pageNumber: integer("page_number"),
+    embedding: vector("embedding").notNull(),
+    metadata: jsonb("metadata").default({}),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_master_embeddings_master").on(table.masterId)]
+);
+
+// ─── Ingestion + Query tracking ─────────────────────────────────
+
 export const ingestionJobs = pgTable(
   "ingestion_jobs",
   {
@@ -138,4 +218,76 @@ export const queryLog = pgTable(
     index("idx_querylog_tenant").on(table.tenantId),
     index("idx_querylog_created").on(table.tenantId, table.createdAt),
   ]
+);
+
+// ─── Onboarding + Invitations ───────────────────────────────────
+
+export const onboardingProgress = pgTable(
+  "onboarding_progress",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    step: varchar("step", { length: 50 }).notNull(),
+    completed: boolean("completed").notNull().default(false),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("idx_onboarding_tenant_step").on(table.tenantId, table.step),
+  ]
+);
+
+export const inviteTokens = pgTable(
+  "invite_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    email: varchar("email", { length: 255 }).notNull(),
+    role: varchar("role", { length: 50 }).notNull().default("engineer"),
+    token: varchar("token", { length: 255 }).unique().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_invite_token").on(table.token)]
+);
+
+// ─── White-label branding ───────────────────────────────────────
+
+export const tenantBranding = pgTable("tenant_branding", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: uuid("tenant_id")
+    .unique()
+    .notNull()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  productName: varchar("product_name", { length: 255 }),
+  primaryColor: varchar("primary_color", { length: 7 }).default("#06b6d4"),
+  secondaryColor: varchar("secondary_color", { length: 7 }).default("#0f172a"),
+  logoS3Key: text("logo_s3_key"),
+  faviconS3Key: text("favicon_s3_key"),
+  customDomain: varchar("custom_domain", { length: 255 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─── Master Library moderation ──────────────────────────────────
+
+export const masterRejectionLog = pgTable(
+  "master_rejection_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    masterId: uuid("master_id")
+      .notNull()
+      .references(() => masterLibrary.id, { onDelete: "cascade" }),
+    rejectedBy: uuid("rejected_by")
+      .notNull()
+      .references(() => users.id),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_rejection_master").on(table.masterId)]
 );

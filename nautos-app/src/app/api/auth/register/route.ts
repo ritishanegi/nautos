@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { tenants, users } from "@/lib/db/schema";
 import { hashPassword, createToken } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { eq } from "drizzle-orm";
 
 const registerSchema = z.object({
@@ -22,52 +23,71 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const data = registerSchema.parse(body);
 
-    const existingUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, data.email))
-      .limit(1);
-
-    if (existingUser.length > 0) {
+    // Rate limit: 3 registrations per IP per hour
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = await rateLimit(`register:${ip}`, 3, 3600);
+    if (!rl.allowed) {
       return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 409 }
+        { error: "Too many registration attempts. Try again later." },
+        { status: 429, headers: { "Retry-After": String(rl.resetInSeconds) } }
       );
     }
 
-    const existingTenant = await db
-      .select()
-      .from(tenants)
-      .where(eq(tenants.subdomain, data.subdomain))
-      .limit(1);
+    // Atomic: check uniqueness + create tenant + create user in one transaction
+    const result = await db.transaction(async (tx) => {
+      const existingUser = await tx
+        .select()
+        .from(users)
+        .where(eq(users.email, data.email))
+        .limit(1);
 
-    if (existingTenant.length > 0) {
+      if (existingUser.length > 0) {
+        return { error: "Email already registered", status: 409 } as const;
+      }
+
+      const existingTenant = await tx
+        .select()
+        .from(tenants)
+        .where(eq(tenants.subdomain, data.subdomain))
+        .limit(1);
+
+      if (existingTenant.length > 0) {
+        return { error: "Subdomain already taken", status: 409 } as const;
+      }
+
+      const [tenant] = await tx
+        .insert(tenants)
+        .values({
+          name: data.companyName,
+          subdomain: data.subdomain,
+        })
+        .returning();
+
+      const passwordHash = await hashPassword(data.password);
+
+      const [user] = await tx
+        .insert(users)
+        .values({
+          tenantId: tenant.id,
+          email: data.email,
+          passwordHash,
+          name: data.name,
+          role: "admin",
+        })
+        .returning();
+
+      return { tenant, user };
+    });
+
+    // Handle validation errors returned from inside the transaction
+    if ("error" in result) {
       return NextResponse.json(
-        { error: "Subdomain already taken" },
-        { status: 409 }
+        { error: result.error },
+        { status: result.status }
       );
     }
 
-    const [tenant] = await db
-      .insert(tenants)
-      .values({
-        name: data.companyName,
-        subdomain: data.subdomain,
-      })
-      .returning();
-
-    const passwordHash = await hashPassword(data.password);
-
-    const [user] = await db
-      .insert(users)
-      .values({
-        tenantId: tenant.id,
-        email: data.email,
-        passwordHash,
-        name: data.name,
-        role: "admin",
-      })
-      .returning();
+    const { tenant, user } = result;
 
     const token = await createToken({
       userId: user.id,

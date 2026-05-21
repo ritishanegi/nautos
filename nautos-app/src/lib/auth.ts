@@ -1,8 +1,14 @@
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 
+// Fail-fast: require JWT_SECRET in production
+const rawSecret = process.env.JWT_SECRET;
+if (!rawSecret && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET environment variable must be set in production");
+}
+
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "dev-jwt-secret-change-in-production-64-characters-long-string!!"
+  rawSecret || "dev-jwt-secret-change-in-production-64-characters-long-string!!"
 );
 const TOKEN_EXPIRY = "7d";
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { verifyPassword, createToken } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { eq } from "drizzle-orm";
 
 const loginSchema = z.object({
@@ -14,6 +15,15 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const data = loginSchema.parse(body);
+
+    // Rate limit: 5 attempts per email per 15 minutes
+    const rl = await rateLimit(`login:${data.email}`, 5, 900);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Try again later." },
+        { status: 429, headers: { "Retry-After": String(rl.resetInSeconds) } }
+      );
+    }
 
     const [user] = await db
       .select()
