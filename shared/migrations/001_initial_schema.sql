@@ -81,7 +81,7 @@ CREATE TABLE embeddings (
     chunk_text TEXT NOT NULL,
     chunk_index INTEGER NOT NULL,
     page_number INTEGER,
-    embedding vector(1536) NOT NULL,
+    embedding vector(1024) NOT NULL,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -113,7 +113,7 @@ CREATE TABLE master_embeddings (
     chunk_text TEXT NOT NULL,
     chunk_index INTEGER NOT NULL,
     page_number INTEGER,
-    embedding vector(1536) NOT NULL,
+    embedding vector(1024) NOT NULL,
     metadata JSONB DEFAULT '{}',
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

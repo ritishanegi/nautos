@@ -9,14 +9,14 @@ class Settings(BaseSettings):
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     aws_region: str = "ap-south-1"
-    s3_bucket: str = "nautos-documents"
+    aws_s3_bucket: str = "nautos-documents"
 
     anthropic_api_key: str = ""
     voyage_api_key: str = ""
     azure_di_endpoint: str = ""
     azure_di_key: str = ""
 
-    model_config = {"env_file": "../.env", "extra": "ignore"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()

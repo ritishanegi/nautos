@@ -15,7 +15,7 @@ import {
 // Custom type for pgvector — Drizzle doesn't have native vector support
 const vector = customType<{ data: number[]; driverParam: string }>({
   dataType() {
-    return "vector(1536)";
+    return "vector(1024)";
   },
   toDriver(value: number[]): string {
     return `[${value.join(",")}]`;

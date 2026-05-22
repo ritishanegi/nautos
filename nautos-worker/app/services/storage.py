@@ -10,7 +10,7 @@ class StorageService:
             aws_access_key_id=settings.aws_access_key_id,
             aws_secret_access_key=settings.aws_secret_access_key,
         )
-        self.bucket = settings.s3_bucket
+        self.bucket = settings.aws_s3_bucket
 
     def download(self, s3_key: str) -> bytes:
         response = self.s3.get_object(Bucket=self.bucket, Key=s3_key)

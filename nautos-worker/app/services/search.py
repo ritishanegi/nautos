@@ -13,22 +13,22 @@ class SearchService:
         self._ensure_index()
 
     def _ensure_index(self):
-        if not self.es.indices.exists(index=self.INDEX_NAME):
+        try:
+            self.es.indices.get(index=self.INDEX_NAME)
+        except Exception:
             self.es.indices.create(
                 index=self.INDEX_NAME,
-                body={
-                    "mappings": {
-                        "properties": {
-                            "text": {"type": "text", "analyzer": "standard"},
-                            "document_id": {"type": "keyword"},
-                            "tenant_id": {"type": "keyword"},
-                            "vessel_id": {"type": "keyword"},
-                            "scope": {"type": "keyword"},
-                            "page_number": {"type": "integer"},
-                            "chunk_index": {"type": "integer"},
-                            "doc_type": {"type": "keyword"},
-                            "title": {"type": "text"},
-                        }
+                mappings={
+                    "properties": {
+                        "text": {"type": "text", "analyzer": "standard"},
+                        "document_id": {"type": "keyword"},
+                        "tenant_id": {"type": "keyword"},
+                        "vessel_id": {"type": "keyword"},
+                        "scope": {"type": "keyword"},
+                        "page_number": {"type": "integer"},
+                        "chunk_index": {"type": "integer"},
+                        "doc_type": {"type": "keyword"},
+                        "title": {"type": "text"},
                     }
                 },
             )
@@ -60,7 +60,7 @@ class SearchService:
             })
 
         if actions:
-            self.es.bulk(body=actions, refresh=True)
+            self.es.bulk(operations=actions, refresh=True)
 
     def keyword_search(
         self,
@@ -80,7 +80,8 @@ class SearchService:
 
         result = self.es.search(
             index=self.INDEX_NAME,
-            body={"query": {"bool": {"must": must}}, "size": top_k},
+            query={"bool": {"must": must}},
+            size=top_k,
         )
 
         hits = []

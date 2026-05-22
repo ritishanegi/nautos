@@ -38,13 +38,14 @@ export default function DashboardPage() {
   }, [router]);
 
   useEffect(() => {
+    if (!user) return;
     fetch("/api/analytics")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.overview) setOverview(data.overview);
       })
       .catch(() => {});
-  }, []);
+  }, [user]);
 
   if (!user) {
     return (

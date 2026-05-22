@@ -107,7 +107,12 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const s3Key = `${tenantId}/${randomUUID()}/${file.name}`;
 
-  await uploadToS3(s3Key, buffer, "application/pdf");
+  try {
+    await uploadToS3(s3Key, buffer, "application/pdf");
+  } catch (err) {
+    console.error("S3 upload failed:", err);
+    return NextResponse.json({ error: "Failed to upload file to storage" }, { status: 502 });
+  }
 
   const [doc] = await db
     .insert(documents)

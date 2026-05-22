@@ -18,7 +18,16 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") || pathname === "/sw.js" || pathname === "/manifest.json") {
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.endsWith(".png") ||
+    pathname.endsWith(".svg") ||
+    pathname.endsWith(".ico") ||
+    pathname === "/sw.js" ||
+    pathname === "/manifest.json" ||
+    pathname === "/robots.txt"
+  ) {
     return NextResponse.next();
   }
 

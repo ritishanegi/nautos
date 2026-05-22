@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { equipment } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { z } from "zod";
 
 const createEquipmentSchema = z.object({
@@ -20,19 +20,17 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const vesselId = url.searchParams.get("vesselId");
 
-  let query = db
-    .select()
-    .from(equipment)
-    .where(eq(equipment.tenantId, tenantId))
-    .orderBy(desc(equipment.createdAt));
-
   const result = vesselId
     ? await db
         .select()
         .from(equipment)
-        .where(eq(equipment.vesselId, vesselId))
+        .where(and(eq(equipment.vesselId, vesselId), eq(equipment.tenantId, tenantId)))
         .orderBy(desc(equipment.createdAt))
-    : await query;
+    : await db
+        .select()
+        .from(equipment)
+        .where(eq(equipment.tenantId, tenantId))
+        .orderBy(desc(equipment.createdAt));
 
   return NextResponse.json({ equipment: result });
 }

@@ -57,9 +57,9 @@ export async function GET(req: NextRequest) {
     .groupBy(sql`DATE(${queryLog.createdAt})`)
     .orderBy(sql`DATE(${queryLog.createdAt})`);
 
-  const topDocuments = await db
+  const topVessels = await db
     .select({
-      documentId: queryLog.vesselId,
+      vesselId: queryLog.vesselId,
       queryCount: count(),
     })
     .from(queryLog)
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
       avgResponseTimeMs: Math.round(Number(avgResponseTime.avg)),
     },
     dailyQueries,
-    topDocuments,
+    topVessels,
     docsByStatus,
   });
 }

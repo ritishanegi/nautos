@@ -23,8 +23,9 @@ def run_query(
     result = rag.query(question=question, tenant_id=tenant_id, vessel_id=vessel_id)
 
     # Step 12: Log query
-    conn = get_connection()
-    try:
+    import json as _json
+
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -37,12 +38,10 @@ def run_query(
                     vessel_id,
                     question,
                     result["answer"],
-                    str(result["sources"]).replace("'", '"'),
+                    _json.dumps(result["sources"]),
                     result["response_time_ms"],
                 ),
             )
         conn.commit()
-    finally:
-        conn.close()
 
     return result

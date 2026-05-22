@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { ingestionJobs } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { documents, ingestionJobs } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 
 export async function GET(
   req: NextRequest,
@@ -13,6 +13,17 @@ export async function GET(
   }
 
   const { id } = await params;
+
+  // Verify the document belongs to this tenant before returning job status
+  const [doc] = await db
+    .select()
+    .from(documents)
+    .where(and(eq(documents.id, id), eq(documents.tenantId, tenantId)))
+    .limit(1);
+
+  if (!doc) {
+    return NextResponse.json({ error: "Document not found" }, { status: 404 });
+  }
 
   const [job] = await db
     .select()

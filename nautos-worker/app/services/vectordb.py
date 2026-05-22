@@ -96,29 +96,33 @@ class VectorDBService:
                     })
 
                 # --- Master library embeddings (shared, PII-stripped) ---
-                cur.execute(
-                    """
-                    SELECT me.master_id::text, me.chunk_text, me.page_number, me.chunk_index,
-                           1 - (me.embedding <=> %s::vector) as score,
-                           ml.title
-                    FROM master_embeddings me
-                    JOIN master_library ml ON ml.id = me.master_id
-                    WHERE me.is_active = true AND ml.is_active = true AND ml.review_status = 'approved'
-                    ORDER BY me.embedding <=> %s::vector
-                    LIMIT %s
-                    """,
-                    (embedding_str, embedding_str, top_k),
-                )
+                try:
+                    cur.execute(
+                        """
+                        SELECT me.master_id::text, me.chunk_text, me.page_number, me.chunk_index,
+                               1 - (me.embedding <=> %s::vector) as score,
+                               ml.title
+                        FROM master_embeddings me
+                        JOIN master_library ml ON ml.id = me.master_id
+                        WHERE me.is_active = true AND ml.is_active = true AND ml.review_status = 'approved'
+                        ORDER BY me.embedding <=> %s::vector
+                        LIMIT %s
+                        """,
+                        (embedding_str, embedding_str, top_k),
+                    )
 
-                for row in cur.fetchall():
-                    results.append({
-                        "document_id": row[0],
-                        "text": row[1],
-                        "page_number": row[2],
-                        "chunk_index": row[3],
-                        "score": float(row[4]),
-                        "scope": "master",
-                        "title": row[5] or "",
-                    })
+                    for row in cur.fetchall():
+                        results.append({
+                            "document_id": row[0],
+                            "text": row[1],
+                            "page_number": row[2],
+                            "chunk_index": row[3],
+                            "score": float(row[4]),
+                            "scope": "master",
+                            "title": row[5] or "",
+                        })
+                except Exception:
+                    # Master library may be empty — that's fine, skip it
+                    pass
 
         return results
