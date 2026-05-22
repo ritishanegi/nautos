@@ -3,9 +3,11 @@ from pydantic import BaseModel
 
 from app.celery_app import celery
 from app.routes.query import router as query_router
+from app.routes.extraction import router as extraction_router
 
 app = FastAPI(title="NAUTOS Worker", version="0.1.0")
 app.include_router(query_router, prefix="/api")
+app.include_router(extraction_router, prefix="/api")
 
 
 class IngestRequest(BaseModel):

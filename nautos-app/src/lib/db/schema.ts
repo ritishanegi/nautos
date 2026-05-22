@@ -291,3 +291,43 @@ export const masterRejectionLog = pgTable(
   },
   (table) => [index("idx_rejection_master").on(table.masterId)]
 );
+
+// ─── Chat sessions and messages ─────────────────────────────────
+
+export const chatSessions = pgTable(
+  "chat_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    vesselId: uuid("vessel_id").references(() => vessels.id, { onDelete: "set null" }),
+    documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
+    title: varchar("title", { length: 255 }).notNull().default("New chat"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_chat_sessions_user").on(table.userId, table.updatedAt),
+    index("idx_chat_sessions_tenant").on(table.tenantId),
+  ]
+);
+
+export const chatMessages = pgTable(
+  "chat_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => chatSessions.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 20 }).notNull(), // 'user' or 'assistant'
+    content: text("content").notNull(),
+    sources: jsonb("sources"),
+    tokensUsed: integer("tokens_used"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_chat_messages_session").on(table.sessionId, table.createdAt)]
+);

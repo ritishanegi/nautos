@@ -6,8 +6,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Download, ChevronLeft, Loader2 } from "lucide-react";
+import { Download, ChevronLeft, Loader2, MessageSquareText, FileSpreadsheet } from "lucide-react";
 import { OCR_STATUS_STYLE } from "@/lib/constants";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface DocumentDetail {
   id: string;
@@ -36,6 +41,7 @@ export default function DocumentDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showExtractDialog, setShowExtractDialog] = useState(false);
 
   const fetchDocument = useCallback(async () => {
     const res = await fetch(`/api/documents/${id}`);
@@ -101,13 +107,27 @@ export default function DocumentDetailPage() {
           <h1 className="text-lg font-semibold text-foreground">{doc.title}</h1>
           <p className="text-sm text-muted-foreground mt-0.5 capitalize">{doc.docType.replace(/_/g, " ")}</p>
         </div>
-        {downloadUrl && (
-          <Button variant="outline" size="sm" asChild>
-            <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-              <Download className="size-4 mr-1.5" />Download
-            </a>
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {doc.ocrStatus === "complete" && (
+            <>
+              <Button size="sm" asChild>
+                <Link href={`/dashboard/query?docId=${doc.id}&docTitle=${encodeURIComponent(doc.title)}`}>
+                  <MessageSquareText className="size-4 mr-1.5" />Ask about this document
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowExtractDialog(true)}>
+                <FileSpreadsheet className="size-4 mr-1.5" />Extract to Excel
+              </Button>
+            </>
+          )}
+          {downloadUrl && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+                <Download className="size-4 mr-1.5" />Download
+              </a>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Metadata grid */}
@@ -124,6 +144,12 @@ export default function DocumentDetailPage() {
           </div>
         ))}
       </div>
+
+      <ExtractDialog
+        open={showExtractDialog}
+        onOpenChange={setShowExtractDialog}
+        documentId={doc.id}
+      />
 
       {/* Processing status */}
       {job && (
@@ -145,5 +171,136 @@ export default function DocumentDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+const EXTRACT_EXAMPLES = [
+  "Parts list with part number, designation, and quantity",
+  "Spare parts catalog with code and price",
+  "Maintenance schedule with intervals and procedures",
+  "Equipment specifications table",
+];
+
+function ExtractDialog({
+  open,
+  onOpenChange,
+  documentId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  documentId: string;
+}) {
+  const [description, setDescription] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function reset() {
+    setDescription("");
+    setError(null);
+  }
+
+  async function handleExtract() {
+    if (!description.trim() || extracting) return;
+    setExtracting(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/documents/${documentId}/extract-table`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: description.trim() }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error || "Extraction failed");
+        setExtracting(false);
+        return;
+      }
+
+      // Trigger browser download from the streamed blob
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      const filename = match?.[1] || "extract.xlsx";
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      onOpenChange(false);
+      reset();
+    } catch {
+      setError("Network error. Please try again.");
+    }
+    setExtracting(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Extract table to Excel</DialogTitle>
+          <DialogDescription>
+            Describe what you want to extract in plain English. The AI will read the
+            document and produce a structured .xlsx file you can download.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          {error && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label>What to extract</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. parts list with part number, designation, and quantity"
+              rows={3}
+              disabled={extracting}
+            />
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground mb-1.5">Examples</p>
+            <div className="flex flex-wrap gap-1.5">
+              {EXTRACT_EXAMPLES.map((ex) => (
+                <button
+                  key={ex}
+                  onClick={() => setDescription(ex)}
+                  disabled={extracting}
+                  className="text-[11px] px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors disabled:opacity-50"
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Extraction can take 15–60 seconds depending on document size.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={extracting}>
+            Cancel
+          </Button>
+          <Button onClick={handleExtract} disabled={!description.trim() || extracting}>
+            {extracting ? (
+              <>
+                <Loader2 className="size-4 mr-1.5 animate-spin" />Extracting...
+              </>
+            ) : (
+              "Extract to Excel"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

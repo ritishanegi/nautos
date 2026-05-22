@@ -13,15 +13,23 @@ from app.config import settings
 
 SYSTEM_PROMPT = """You are NAUTOS AI, a maritime technical expert assistant. You help ship engineers, fleet managers, and technical superintendents find accurate information from vessel documentation.
 
-Rules:
-1. Only answer based on the provided context. If the answer is not in the context, say so clearly.
-2. Cite your sources using [Source: document title, page X] format.
-3. For maintenance procedures, list steps clearly and in order.
-4. For part numbers, specifications, or measurements, quote them exactly as they appear.
-5. If multiple documents contain relevant information, synthesize them and cite each.
-6. Be concise but complete. Maritime professionals need actionable answers.
-7. If the context contains tables, format your answer to preserve that structure.
-8. Never fabricate part numbers, intervals, or specifications."""
+CRITICAL RULES — these are non-negotiable:
+
+1. ONLY use information from the provided <context>. Never infer, synthesize beyond the text, or fill in gaps from general knowledge.
+2. If the answer is not in the context, respond exactly: "Not found in the provided documentation." Do not guess.
+3. Quote part numbers, ident numbers, codes, torque values, intervals, and specifications EXACTLY as written — character-for-character.
+4. For tables: output ALL rows present in the context. Never abbreviate with "...", "and so on", or "(continues)". If a table has 57 rows in the context, your output has 57 rows.
+5. Cite every factual claim using [Source: document title, page X] format. If you cannot cite it, you cannot say it.
+6. For multilingual documents (German/English/French maritime manuals), preserve the original language in part designations and add English translation in parentheses if helpful.
+7. For maintenance procedures, list every step in the order shown — no skipping.
+8. Format tables as proper Markdown tables (with `|` and `---` separators) so they render in the UI.
+
+When the user is having a multi-turn conversation, you may use prior messages for context (e.g. "what about its weight?" refers to the previously discussed item), but every factual claim must still come from <context>.
+
+Maritime engineers will trust your answers to maintain equipment that costs millions and protect lives. Accuracy over creativity, always."""
+
+# Max number of prior chat turns to include — limits prompt cost + latency
+MAX_HISTORY_TURNS = 10
 
 
 def _build_user_message(question: str, context: str) -> str:
@@ -34,6 +42,13 @@ def _build_user_message(question: str, context: str) -> str:
 Question: {question}"""
 
 
+def _truncate_history(history: list[dict] | None) -> list[dict]:
+    """Keep only the last MAX_HISTORY_TURNS messages (user+assistant pairs)."""
+    if not history:
+        return []
+    return history[-MAX_HISTORY_TURNS:]
+
+
 class GroqLLM:
     """Groq streaming client — uses Llama 3.3 70B by default."""
 
@@ -44,16 +59,18 @@ class GroqLLM:
         # Llama 3.3 70B: solid quality, very fast on Groq's LPU hardware
         self.model = "llama-3.3-70b-versatile"
 
-    def stream_answer(self, question: str, context: str):
-        user_message = _build_user_message(question, context)
+    def _build_messages(self, question: str, context: str, chat_history: list[dict] | None):
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages.extend(_truncate_history(chat_history))
+        messages.append({"role": "user", "content": _build_user_message(question, context)})
+        return messages
+
+    def stream_answer(self, question: str, context: str, chat_history: list[dict] | None = None):
         stream = self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_message},
-            ],
-            max_tokens=2048,
-            temperature=0.3,
+            messages=self._build_messages(question, context, chat_history),
+            max_tokens=4000,
+            temperature=0.1,
             stream=True,
         )
         for chunk in stream:
@@ -61,16 +78,12 @@ class GroqLLM:
             if delta:
                 yield delta
 
-    def get_answer(self, question: str, context: str) -> str:
-        user_message = _build_user_message(question, context)
+    def get_answer(self, question: str, context: str, chat_history: list[dict] | None = None) -> str:
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_message},
-            ],
-            max_tokens=2048,
-            temperature=0.3,
+            messages=self._build_messages(question, context, chat_history),
+            max_tokens=4000,
+            temperature=0.1,
         )
         return response.choices[0].message.content
 
@@ -86,30 +99,40 @@ class GeminiLLM:
         # Free tier: 15 RPM, 1M TPM, 1,500 RPD
         self.model = "gemini-1.5-flash"
 
-    def stream_answer(self, question: str, context: str):
-        user_message = _build_user_message(question, context)
+    def _build_contents(self, question: str, context: str, chat_history: list[dict] | None):
+        # Gemini uses "contents" with role 'user' / 'model' (not 'assistant')
+        contents = []
+        for msg in _truncate_history(chat_history):
+            role = "model" if msg["role"] == "assistant" else "user"
+            contents.append({"role": role, "parts": [{"text": msg["content"]}]})
+        contents.append({
+            "role": "user",
+            "parts": [{"text": _build_user_message(question, context)}],
+        })
+        return contents
+
+    def stream_answer(self, question: str, context: str, chat_history: list[dict] | None = None):
         response = self.client.models.generate_content_stream(
             model=self.model,
-            contents=user_message,
+            contents=self._build_contents(question, context, chat_history),
             config={
                 "system_instruction": SYSTEM_PROMPT,
-                "max_output_tokens": 2048,
-                "temperature": 0.3,
+                "max_output_tokens": 4000,
+                "temperature": 0.1,
             },
         )
         for chunk in response:
             if chunk.text:
                 yield chunk.text
 
-    def get_answer(self, question: str, context: str) -> str:
-        user_message = _build_user_message(question, context)
+    def get_answer(self, question: str, context: str, chat_history: list[dict] | None = None) -> str:
         response = self.client.models.generate_content(
             model=self.model,
-            contents=user_message,
+            contents=self._build_contents(question, context, chat_history),
             config={
                 "system_instruction": SYSTEM_PROMPT,
-                "max_output_tokens": 2048,
-                "temperature": 0.3,
+                "max_output_tokens": 4000,
+                "temperature": 0.1,
             },
         )
         return response.text
@@ -124,24 +147,28 @@ class AnthropicLLM:
         self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self.model = "claude-sonnet-4-6-20250514"
 
-    def stream_answer(self, question: str, context: str):
-        user_message = _build_user_message(question, context)
+    def _build_messages(self, question: str, context: str, chat_history: list[dict] | None):
+        # Anthropic accepts the standard role/content shape directly
+        messages = list(_truncate_history(chat_history))
+        messages.append({"role": "user", "content": _build_user_message(question, context)})
+        return messages
+
+    def stream_answer(self, question: str, context: str, chat_history: list[dict] | None = None):
         with self.client.messages.stream(
             model=self.model,
-            max_tokens=2048,
+            max_tokens=4000,
             system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_message}],
+            messages=self._build_messages(question, context, chat_history),
         ) as stream:
             for text in stream.text_stream:
                 yield text
 
-    def get_answer(self, question: str, context: str) -> str:
-        user_message = _build_user_message(question, context)
+    def get_answer(self, question: str, context: str, chat_history: list[dict] | None = None) -> str:
         response = self.client.messages.create(
             model=self.model,
-            max_tokens=2048,
+            max_tokens=4000,
             system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_message}],
+            messages=self._build_messages(question, context, chat_history),
         )
         return response.content[0].text
 
@@ -183,8 +210,8 @@ class LLMService:
             "or ANTHROPIC_API_KEY in .env (and LLM_PROVIDER to match)."
         )
 
-    def stream_answer(self, question: str, context: str):
-        yield from self._impl.stream_answer(question, context)
+    def stream_answer(self, question: str, context: str, chat_history: list[dict] | None = None):
+        yield from self._impl.stream_answer(question, context, chat_history=chat_history)
 
-    def get_answer(self, question: str, context: str) -> str:
-        return self._impl.get_answer(question, context)
+    def get_answer(self, question: str, context: str, chat_history: list[dict] | None = None) -> str:
+        return self._impl.get_answer(question, context, chat_history=chat_history)

@@ -26,15 +26,29 @@ export async function dispatchIngestion(documentId: string): Promise<string> {
   return data.task_id;
 }
 
+export interface ChatHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 /**
  * Stream a RAG query through the worker.
  * Returns the raw Response for SSE forwarding.
+ *
+ * When `documentId` is provided, the worker enters scoped mode and answers
+ * using only that document's chunks (bypassing top-K filtering). Used by
+ * the "Ask about this document" flow.
+ *
+ * `chatHistory` provides multi-turn context — previous user/assistant turns
+ * are sent so the LLM understands follow-up questions.
  */
 export async function streamQuery(params: {
   question: string;
   tenantId: string;
   vesselId: string | null;
+  documentId?: string | null;
   userId: string | null;
+  chatHistory?: ChatHistoryMessage[];
   signal?: AbortSignal;
 }): Promise<Response> {
   return fetch(`${WORKER_URL}/api/query/stream`, {
@@ -44,7 +58,9 @@ export async function streamQuery(params: {
       question: params.question,
       tenant_id: params.tenantId,
       vessel_id: params.vesselId,
+      document_id: params.documentId ?? null,
       user_id: params.userId,
+      chat_history: params.chatHistory ?? null,
     }),
     signal: params.signal,
   });

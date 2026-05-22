@@ -126,3 +126,39 @@ class VectorDBService:
                     pass
 
         return results
+
+    def get_all_chunks_for_document(
+        self,
+        document_id: str,
+        tenant_id: str,
+    ) -> list[dict]:
+        """
+        Retrieve ALL chunks for one document, ordered by page + chunk index.
+        Used for document-scoped queries where we bypass top-K and feed the
+        whole document to the LLM. Tenant_id check prevents cross-tenant leaks.
+        """
+        results = []
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT e.document_id, e.chunk_text, e.page_number, e.chunk_index,
+                           d.scope, d.title
+                    FROM embeddings e
+                    JOIN documents d ON d.id = e.document_id
+                    WHERE e.document_id = %s AND e.tenant_id = %s
+                    ORDER BY e.page_number ASC NULLS LAST, e.chunk_index ASC
+                    """,
+                    (document_id, tenant_id),
+                )
+                for row in cur.fetchall():
+                    results.append({
+                        "document_id": row[0],
+                        "text": row[1],
+                        "page_number": row[2],
+                        "chunk_index": row[3],
+                        "score": 1.0,  # No score in scoped mode — all chunks are relevant
+                        "scope": row[4] or "vessel",
+                        "title": row[5] or "",
+                    })
+        return results

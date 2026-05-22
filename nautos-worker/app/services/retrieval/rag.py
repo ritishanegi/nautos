@@ -49,20 +49,41 @@ class RAGService:
         question: str,
         tenant_id: str,
         vessel_id: str | None = None,
+        document_id: str | None = None,
+        chat_history: list[dict] | None = None,
         tenant_name: str = "",
     ) -> dict:
-        """Execute the full RAG pipeline, return answer + sources."""
+        """
+        Non-streaming version of stream_query. Same modes:
+        scoped (document_id), vessel-scoped, or tenant-wide.
+        """
         start_time = time.time()
 
-        # Step 1: Embed question
+        # ─── Scoped mode: one document, all chunks ────────────────────
+        if document_id:
+            all_chunks = self.vectordb.get_all_chunks_for_document(
+                document_id=document_id, tenant_id=tenant_id,
+            )
+            if not all_chunks:
+                return {
+                    "answer": "This document has no indexed content yet.",
+                    "sources": [],
+                    "response_time_ms": int((time.time() - start_time) * 1000),
+                }
+            context = self._build_context(all_chunks, scoped=True)
+            answer = self.llm.get_answer(question, context, chat_history=chat_history)
+            return {
+                "answer": answer,
+                "sources": self._collect_sources(all_chunks),
+                "response_time_ms": int((time.time() - start_time) * 1000),
+            }
+
+        # ─── Hybrid retrieval ─────────────────────────────────────────
         query_vector = self.embedder.embed_query(question)
 
-        # Step 2: Keyword search via Elasticsearch
         keyword_results = self.search.keyword_search(
             query=question, tenant_id=tenant_id, vessel_id=vessel_id, top_k=20
         )
-
-        # Step 3: Vector search via pgvector
         vector_results = self.vectordb.vector_search(
             query_embedding=query_vector,
             tenant_id=tenant_id,
@@ -70,10 +91,8 @@ class RAGService:
             top_k=20,
         )
 
-        # Step 4: Reciprocal Rank Fusion
         fused = self._reciprocal_rank_fusion(keyword_results, vector_results)
 
-        # Step 5: Priority boost by scope
         for item in fused:
             scope = item.get("scope", "vessel")
             if scope == "vessel":
@@ -83,10 +102,7 @@ class RAGService:
             else:
                 item["final_score"] = item["rrf_score"] * self.BOOST_MASTER
 
-        # Step 6: Score threshold filter
         fused = [r for r in fused if r["final_score"] >= self.SCORE_THRESHOLD]
-
-        # Step 7: Top 10
         fused.sort(key=lambda x: x["final_score"], reverse=True)
         top_chunks = fused[: self.TOP_K]
 
@@ -97,39 +113,17 @@ class RAGService:
                 "response_time_ms": int((time.time() - start_time) * 1000),
             }
 
-        # Step 8: Strip PII from master chunks
         for chunk in top_chunks:
             if chunk.get("scope") == "master":
-                chunk["text"] = self.privacy.strip_master_metadata(
-                    chunk["text"], tenant_name
-                )
+                chunk["text"] = self.privacy.strip_master_metadata(chunk["text"], tenant_name)
 
-        # Step 9: Build context with scope labels
         context = self._build_context(top_chunks)
-
-        # Step 10: Get answer from Claude
-        answer = self.llm.get_answer(question, context)
-
-        # Step 11: Collect sources
-        sources = []
-        seen_docs = set()
-        for chunk in top_chunks:
-            doc_id = chunk["document_id"]
-            if doc_id not in seen_docs:
-                seen_docs.add(doc_id)
-                sources.append({
-                    "document_id": doc_id,
-                    "title": chunk.get("title", ""),
-                    "page_number": chunk.get("page_number"),
-                    "scope": chunk.get("scope", "vessel"),
-                })
-
-        response_time_ms = int((time.time() - start_time) * 1000)
+        answer = self.llm.get_answer(question, context, chat_history=chat_history)
 
         return {
             "answer": answer,
-            "sources": sources,
-            "response_time_ms": response_time_ms,
+            "sources": self._collect_sources(top_chunks),
+            "response_time_ms": int((time.time() - start_time) * 1000),
         }
 
     def stream_query(
@@ -137,9 +131,43 @@ class RAGService:
         question: str,
         tenant_id: str,
         vessel_id: str | None = None,
+        document_id: str | None = None,
+        chat_history: list[dict] | None = None,
         tenant_name: str = "",
     ):
-        """Execute RAG pipeline and yield streaming tokens."""
+        """
+        Execute RAG pipeline and yield streaming tokens.
+
+        Three modes:
+        - document_id provided → scoped mode: fetch ALL chunks from that one
+          document, ordered by page. Bypasses RRF / scoring / top-K. Used by
+          "Ask about this document" flow.
+        - vessel_id provided → vessel-scoped hybrid search.
+        - Neither → tenant-wide hybrid search across all docs + master library.
+        """
+        # ─── Scoped mode: one document, all chunks ────────────────────
+        if document_id:
+            all_chunks = self.vectordb.get_all_chunks_for_document(
+                document_id=document_id,
+                tenant_id=tenant_id,
+            )
+            if not all_chunks:
+                yield {"type": "text", "content": "This document has no indexed content yet, or you don't have access to it."}
+                yield {"type": "sources", "content": []}
+                yield {"type": "done"}
+                return
+
+            context = self._build_context(all_chunks, scoped=True)
+            sources = self._collect_sources(all_chunks)
+
+            for text_chunk in self.llm.stream_answer(question, context, chat_history=chat_history):
+                yield {"type": "text", "content": text_chunk}
+
+            yield {"type": "sources", "content": sources}
+            yield {"type": "done"}
+            return
+
+        # ─── Hybrid retrieval mode: search across docs ────────────────
         query_vector = self.embedder.embed_query(question)
 
         keyword_results = self.search.keyword_search(
@@ -178,10 +206,19 @@ class RAGService:
                 chunk["text"] = self.privacy.strip_master_metadata(chunk["text"], tenant_name)
 
         context = self._build_context(top_chunks)
+        sources = self._collect_sources(top_chunks)
 
+        for text_chunk in self.llm.stream_answer(question, context, chat_history=chat_history):
+            yield {"type": "text", "content": text_chunk}
+
+        yield {"type": "sources", "content": sources}
+        yield {"type": "done"}
+
+    def _collect_sources(self, chunks: list[dict]) -> list[dict]:
+        """Deduplicate chunks by document_id, preserving first-seen page number."""
         sources = []
         seen_docs = set()
-        for chunk in top_chunks:
+        for chunk in chunks:
             doc_id = chunk["document_id"]
             if doc_id not in seen_docs:
                 seen_docs.add(doc_id)
@@ -191,12 +228,7 @@ class RAGService:
                     "page_number": chunk.get("page_number"),
                     "scope": chunk.get("scope", "vessel"),
                 })
-
-        for text_chunk in self.llm.stream_answer(question, context):
-            yield {"type": "text", "content": text_chunk}
-
-        yield {"type": "sources", "content": sources}
-        yield {"type": "done"}
+        return sources
 
     def _reciprocal_rank_fusion(
         self, keyword_results: list[dict], vector_results: list[dict]
@@ -218,8 +250,14 @@ class RAGService:
 
         return list(scores.values())
 
-    def _build_context(self, chunks: list[dict]) -> str:
-        """Build labeled context block for Claude."""
+    def _build_context(self, chunks: list[dict], scoped: bool = False) -> str:
+        """
+        Build labeled context block for the LLM.
+
+        scoped=True signals 'single document, all chunks present' — adds a
+        framing header so the LLM knows it has the complete document and
+        should answer comprehensively (e.g. output ALL table rows).
+        """
         sections = []
         for chunk in chunks:
             scope = chunk.get("scope", "vessel").upper()
@@ -228,4 +266,17 @@ class RAGService:
             sections.append(
                 f"[{scope}] {title} (Page {page}):\n{chunk['text']}"
             )
-        return "\n\n---\n\n".join(sections)
+        body = "\n\n---\n\n".join(sections)
+
+        if scoped and chunks:
+            doc_title = chunks[0].get("title", "this document")
+            preamble = (
+                f"The following is the COMPLETE content of one document: "
+                f"'{doc_title}'. All available chunks from this document are "
+                f"included below, ordered by page. Answer the user's question "
+                f"comprehensively using only this content. Do not refer to "
+                f"other documents — there are none in scope.\n\n"
+            )
+            return preamble + body
+
+        return body
