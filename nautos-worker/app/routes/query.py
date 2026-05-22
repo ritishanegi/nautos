@@ -1,4 +1,5 @@
 import json
+from uuid import UUID
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -15,6 +16,13 @@ class QueryRequest(BaseModel):
     user_id: str | None = None
 
 
+def _json_default(obj):
+    """JSON serializer fallback — converts UUIDs (from psycopg) to strings."""
+    if isinstance(obj, UUID):
+        return str(obj)
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
+
 @router.post("/query/stream")
 async def stream_query(req: QueryRequest):
     """SSE endpoint for streaming RAG answers."""
@@ -26,7 +34,7 @@ async def stream_query(req: QueryRequest):
             tenant_id=req.tenant_id,
             vessel_id=req.vessel_id,
         ):
-            yield f"data: {json.dumps(event)}\n\n"
+            yield f"data: {json.dumps(event, default=_json_default)}\n\n"
 
     return StreamingResponse(
         event_stream(),

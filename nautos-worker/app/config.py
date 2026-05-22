@@ -13,7 +13,8 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
-    llm_provider: str = "gemini"  # "gemini" or "anthropic"
+    groq_api_key: str = ""
+    llm_provider: str = "groq"  # "groq", "gemini", or "anthropic"
     voyage_api_key: str = ""
     azure_di_endpoint: str = ""
     azure_di_key: str = ""

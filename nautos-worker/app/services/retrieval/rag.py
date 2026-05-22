@@ -27,7 +27,10 @@ class RAGService:
     12. Log query
     """
 
-    SCORE_THRESHOLD = 0.3
+    # RRF scores cap at ~1/(RRF_K+1) per search source (~0.016 with RRF_K=60).
+    # A chunk hitting both searches at top rank yields ~0.033, boosted ~0.038.
+    # Threshold must be well below that to allow real matches through.
+    SCORE_THRESHOLD = 0.005
     TOP_K = 10
     BOOST_VESSEL = 1.15
     BOOST_FLEET = 1.05
