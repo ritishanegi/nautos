@@ -69,6 +69,9 @@ const SCOPED_SUGGESTIONS = [
  * 3. Doc-scoped chat (scopedDocumentId provided) — creates session linked to
  *    that document on first send.
  */
+/** Custom event the sidebar listens for to refetch its session list. */
+export const SESSIONS_UPDATED_EVENT = "nautos:sessions-updated";
+
 export function ChatInterface({
   sessionId: initialSessionId = null,
   initialMessages = [],
@@ -86,7 +89,12 @@ export function ChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const isScoped = Boolean(scopedDocumentId);
+  // Lock initial scope in state so URL changes (history.replaceState after
+  // session creation) don't blank out the scope pill. The session in the DB
+  // is permanently bound to this doc anyway — UX should reflect that.
+  const [activeDocumentId] = useState<string | null>(scopedDocumentId);
+  const [activeDocumentTitle] = useState<string | null>(scopedDocumentTitle);
+  const isScoped = Boolean(activeDocumentId);
 
   // Fetch vessel options (only relevant in unscoped mode)
   useEffect(() => {
@@ -116,7 +124,7 @@ export function ChatInterface({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          documentId: scopedDocumentId,
+          documentId: activeDocumentId,
           vesselId: !isScoped && vesselId !== "all" ? vesselId : undefined,
         }),
       });
@@ -126,6 +134,8 @@ export function ChatInterface({
       setSessionId(newId);
       // Update URL without triggering re-render so the user can bookmark
       window.history.replaceState(null, "", `/dashboard/query/${newId}`);
+      // Tell the sidebar to refetch its session list — a new entry exists now
+      window.dispatchEvent(new Event(SESSIONS_UPDATED_EVENT));
       onSessionCreated?.(newId);
       return newId;
     } catch {
@@ -163,7 +173,7 @@ export function ChatInterface({
           question,
           sessionId: activeSessionId,
           // Scope hints: server prefers session's own doc/vessel if set
-          documentId: scopedDocumentId || undefined,
+          documentId: activeDocumentId || undefined,
           vesselId: !isScoped && vesselId !== "all" ? vesselId : undefined,
         }),
       });
@@ -235,6 +245,13 @@ export function ChatInterface({
       });
     }
     setStreaming(false);
+
+    // Stream is done — the server may have updated the session title (from
+    // "New chat" to a snippet of the first question). Tell the sidebar to
+    // refetch so the new title shows up immediately.
+    if (sessionId) {
+      window.dispatchEvent(new Event(SESSIONS_UPDATED_EVENT));
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {

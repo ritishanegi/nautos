@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SESSIONS_UPDATED_EVENT } from "./chat-interface";
 
 interface ChatSession {
   id: string;
@@ -51,6 +52,20 @@ export function SessionsSidebar({ activeSessionId }: SessionsSidebarProps) {
 
   useEffect(() => {
     loadSessions();
+    // Refetch sessions when ChatInterface broadcasts a change
+    // (new session created, title updated after first response, etc.)
+    const handler = () => loadSessions();
+    window.addEventListener(SESSIONS_UPDATED_EVENT, handler);
+    // Also refetch when the tab becomes visible again — covers the case
+    // where another tab created/deleted a session
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") loadSessions();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener(SESSIONS_UPDATED_EVENT, handler);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [loadSessions]);
 
   async function handleDelete(sessionId: string) {
@@ -58,6 +73,7 @@ export function SessionsSidebar({ activeSessionId }: SessionsSidebarProps) {
     const res = await fetch(`/api/chat/sessions/${sessionId}`, { method: "DELETE" });
     if (res.ok) {
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      window.dispatchEvent(new Event(SESSIONS_UPDATED_EVENT));
       if (activeSessionId === sessionId) router.push("/dashboard/query");
     }
   }
@@ -72,6 +88,7 @@ export function SessionsSidebar({ activeSessionId }: SessionsSidebarProps) {
     });
     if (res.ok) {
       setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title } : s)));
+      window.dispatchEvent(new Event(SESSIONS_UPDATED_EVENT));
     }
   }
 
