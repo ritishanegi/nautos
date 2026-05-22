@@ -1,7 +1,7 @@
 import logging
 
 from app.celery_app import celery
-from app.services.rag import RAGService
+from app.services.retrieval.rag import RAGService
 from app.services.db import get_connection
 
 logger = logging.getLogger(__name__)

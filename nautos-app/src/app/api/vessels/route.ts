@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { vessels } from "@/lib/db/schema";
+import { requireTenant, validationError, serverError } from "@/lib/server/api-helpers";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 
@@ -12,25 +13,21 @@ const createVesselSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const ctx = requireTenant(req);
+  if (ctx instanceof NextResponse) return ctx;
 
   const result = await db
     .select()
     .from(vessels)
-    .where(eq(vessels.tenantId, tenantId))
+    .where(eq(vessels.tenantId, ctx.tenantId))
     .orderBy(desc(vessels.createdAt));
 
   return NextResponse.json({ vessels: result });
 }
 
 export async function POST(req: NextRequest) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const ctx = requireTenant(req);
+  if (ctx instanceof NextResponse) return ctx;
 
   try {
     const body = await req.json();
@@ -39,7 +36,7 @@ export async function POST(req: NextRequest) {
     const [vessel] = await db
       .insert(vessels)
       .values({
-        tenantId,
+        tenantId: ctx.tenantId,
         name: data.name,
         imo: data.imo || null,
         vesselType: data.vesselType || null,
@@ -49,10 +46,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ vessel }, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation failed", details: error.errors }, { status: 400 });
-    }
-    console.error("Create vessel error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    if (error instanceof z.ZodError) return validationError(error);
+    return serverError("Create vessel error", error);
   }
 }

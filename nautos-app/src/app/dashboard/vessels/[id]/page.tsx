@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,20 +11,31 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { ChevronLeft, Plus, Loader2, Upload } from "lucide-react";
+import { OCR_STATUS_STYLE } from "@/lib/constants";
 
 interface Vessel {
-  id: string; name: string; imo: string | null; vesselType: string | null;
-  flagState: string | null; isActive: boolean; createdAt: string;
+  id: string;
+  name: string;
+  imo: string | null;
+  vesselType: string | null;
+  flagState: string | null;
+  isActive: boolean;
+  createdAt: string;
 }
-interface Equipment { id: string; manufacturer: string; modelType: string; serialNumber: string | null; }
-interface Document { id: string; title: string; docType: string; ocrStatus: string; }
 
-const STATUS_STYLE: Record<string, string> = {
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  processing: "bg-blue-50 text-blue-700 border-blue-200",
-  complete: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  failed: "bg-red-50 text-red-700 border-red-200",
-};
+interface Equipment {
+  id: string;
+  manufacturer: string;
+  modelType: string;
+  serialNumber: string | null;
+}
+
+interface Document {
+  id: string;
+  title: string;
+  docType: string;
+  ocrStatus: string;
+}
 
 export default function VesselDetailPage() {
   const { id } = useParams();
@@ -34,29 +45,53 @@ export default function VesselDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showAddEq, setShowAddEq] = useState(false);
 
-  async function load() {
-    const res = await fetch(`/api/vessels/${id}`);
-    if (res.ok) {
-      const data = await res.json();
-      setVessel(data.vessel); setEquipmentList(data.equipment); setDocuments(data.documents);
+  const loadVessel = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/vessels/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setVessel(data.vessel);
+        setEquipmentList(data.equipment);
+        setDocuments(data.documents);
+      }
+    } catch {
+      // Network error
     }
     setLoading(false);
-  }
-  useEffect(() => { load(); }, [id]);
+  }, [id]);
+
+  useEffect(() => {
+    loadVessel();
+  }, [loadVessel]);
 
   async function handleAddEq(eq: { manufacturer: string; modelType: string; serialNumber: string }) {
     const res = await fetch("/api/equipment", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...eq, vesselId: id }),
     });
-    if (res.ok) { setShowAddEq(false); load(); }
+    if (res.ok) { setShowAddEq(false); loadVessel(); }
   }
 
-  if (loading) return <div className="flex-1 flex items-center justify-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
-  if (!vessel) return <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">Vessel not found</div>;
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!vessel) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+        Vessel not found
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
+      {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-sm mb-6">
         <Link href="/dashboard/vessels" className="text-muted-foreground hover:text-foreground flex items-center gap-0.5">
           <ChevronLeft className="size-4" />Fleet
@@ -119,14 +154,16 @@ export default function VesselDetailPage() {
         ) : (
           <div className="space-y-1.5">
             {documents.map((doc) => (
-              <Link key={doc.id} href={`/dashboard/documents/${doc.id}`}
+              <Link
+                key={doc.id}
+                href={`/dashboard/documents/${doc.id}`}
                 className="flex items-center justify-between border border-border rounded-md px-3 py-2.5 hover:bg-muted/50 transition-colors"
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">{doc.title}</p>
                   <p className="text-xs text-muted-foreground capitalize">{doc.docType.replace(/_/g, " ")}</p>
                 </div>
-                <Badge variant="outline" className={`text-[10px] capitalize ${STATUS_STYLE[doc.ocrStatus] || ""}`}>
+                <Badge variant="outline" className={`text-[10px] capitalize ${OCR_STATUS_STYLE[doc.ocrStatus] || ""}`}>
                   {doc.ocrStatus}
                 </Badge>
               </Link>
@@ -141,7 +178,8 @@ export default function VesselDetailPage() {
 }
 
 function AddEquipmentDialog({ open, onOpenChange, onAdd }: {
-  open: boolean; onOpenChange: (v: boolean) => void;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
   onAdd: (eq: { manufacturer: string; modelType: string; serialNumber: string }) => void;
 }) {
   const [manufacturer, setManufacturer] = useState("");
@@ -157,9 +195,18 @@ function AddEquipmentDialog({ open, onOpenChange, onAdd }: {
           <DialogDescription>Link equipment to this vessel</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-1.5"><Label>Manufacturer *</Label><Input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} placeholder="MAN B&W" /></div>
-          <div className="space-y-1.5"><Label>Model / Type *</Label><Input value={modelType} onChange={(e) => setModelType(e.target.value)} placeholder="6S60ME-C8.5" /></div>
-          <div className="space-y-1.5"><Label>Serial number</Label><Input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="ME-C8-2024-0147" /></div>
+          <div className="space-y-1.5">
+            <Label>Manufacturer *</Label>
+            <Input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} placeholder="MAN B&W" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Model / Type *</Label>
+            <Input value={modelType} onChange={(e) => setModelType(e.target.value)} placeholder="6S60ME-C8.5" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Serial number</Label>
+            <Input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="ME-C8-2024-0147" />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

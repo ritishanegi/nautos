@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { documents, ingestionJobs } from "@/lib/db/schema";
-import { uploadToS3, getUploadUrl } from "@/lib/s3";
-import { dispatchCeleryTask } from "@/lib/redis";
-import { rateLimit } from "@/lib/rate-limit";
+import { uploadToS3, getUploadUrl } from "@/lib/clients/s3";
+import { dispatchIngestion } from "@/lib/clients/worker";
+import { rateLimit } from "@/lib/server/rate-limit";
+import { requireTenant } from "@/lib/server/api-helpers";
+import { MAX_FILE_SIZE, DIRECT_UPLOAD_LIMIT } from "@/lib/constants";
 import { randomUUID } from "crypto";
 
-const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-const DIRECT_UPLOAD_LIMIT = 50 * 1024 * 1024; // 50MB — above this, use presigned URL
-
 export async function POST(req: NextRequest) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const ctx = requireTenant(req);
+  if (ctx instanceof NextResponse) return ctx;
 
   // Rate limit: 20 uploads per tenant per minute
-  const rl = await rateLimit(`upload:${tenantId}`, 20, 60);
+  const rl = await rateLimit(`upload:${ctx.tenantId}`, 20, 60);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many uploads. Try again shortly." },
@@ -46,14 +43,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "File exceeds 500MB limit" }, { status: 400 });
     }
 
-    const s3Key = `${tenantId}/${randomUUID()}/${fileName}`;
+    const s3Key = `${ctx.tenantId}/${randomUUID()}/${fileName}`;
     const uploadUrl = await getUploadUrl(s3Key, "application/pdf", fileSize || MAX_FILE_SIZE);
 
-    // Create document record (status: pending, waiting for upload confirmation)
     const [doc] = await db
       .insert(documents)
       .values({
-        tenantId,
+        tenantId: ctx.tenantId,
         vesselId: vesselId || null,
         title,
         docType,
@@ -63,18 +59,10 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    await db.insert(ingestionJobs).values({
-      documentId: doc.id,
-      status: "queued",
-    });
+    await db.insert(ingestionJobs).values({ documentId: doc.id, status: "queued" });
+    await dispatchIngestion(doc.id);
 
-    // Dispatch ingestion — the worker will retry S3 download until the file arrives
-    await dispatchCeleryTask("ingest_document", [doc.id]);
-
-    return NextResponse.json(
-      { document: doc, uploadUrl },
-      { status: 201 }
-    );
+    return NextResponse.json({ document: doc, uploadUrl }, { status: 201 });
   }
 
   // ─── Mode 2: FormData upload (small files, <50MB through server) ───
@@ -105,7 +93,7 @@ export async function POST(req: NextRequest) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const s3Key = `${tenantId}/${randomUUID()}/${file.name}`;
+  const s3Key = `${ctx.tenantId}/${randomUUID()}/${file.name}`;
 
   try {
     await uploadToS3(s3Key, buffer, "application/pdf");
@@ -117,7 +105,7 @@ export async function POST(req: NextRequest) {
   const [doc] = await db
     .insert(documents)
     .values({
-      tenantId,
+      tenantId: ctx.tenantId,
       vesselId,
       title,
       docType,
@@ -127,12 +115,8 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
-  await db.insert(ingestionJobs).values({
-    documentId: doc.id,
-    status: "queued",
-  });
-
-  await dispatchCeleryTask("ingest_document", [doc.id]);
+  await db.insert(ingestionJobs).values({ documentId: doc.id, status: "queued" });
+  await dispatchIngestion(doc.id);
 
   return NextResponse.json({ document: doc }, { status: 201 });
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { verifyPassword, createToken } from "@/lib/auth";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/server/rate-limit";
 import { eq } from "drizzle-orm";
 
 const loginSchema = z.object({

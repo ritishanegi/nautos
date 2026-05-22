@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { vessels, equipment, documents } from "@/lib/db/schema";
+import { requireTenant, validationError, serverError } from "@/lib/server/api-helpers";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
@@ -16,32 +17,32 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const ctx = requireTenant(req);
+  if (ctx instanceof NextResponse) return ctx;
 
   const { id } = await params;
 
   const [vessel] = await db
     .select()
     .from(vessels)
-    .where(and(eq(vessels.id, id), eq(vessels.tenantId, tenantId)))
+    .where(and(eq(vessels.id, id), eq(vessels.tenantId, ctx.tenantId)))
     .limit(1);
 
   if (!vessel) {
     return NextResponse.json({ error: "Vessel not found" }, { status: 404 });
   }
 
-  const vesselEquipment = await db
-    .select()
-    .from(equipment)
-    .where(and(eq(equipment.vesselId, id), eq(equipment.tenantId, tenantId)));
-
-  const vesselDocuments = await db
-    .select()
-    .from(documents)
-    .where(and(eq(documents.vesselId, id), eq(documents.tenantId, tenantId)));
+  // Parallel fetch for related data
+  const [vesselEquipment, vesselDocuments] = await Promise.all([
+    db
+      .select()
+      .from(equipment)
+      .where(and(eq(equipment.vesselId, id), eq(equipment.tenantId, ctx.tenantId))),
+    db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.vesselId, id), eq(documents.tenantId, ctx.tenantId))),
+  ]);
 
   return NextResponse.json({
     vessel,
@@ -54,10 +55,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const ctx = requireTenant(req);
+  if (ctx instanceof NextResponse) return ctx;
 
   const { id } = await params;
 
@@ -68,7 +67,7 @@ export async function PATCH(
     const [updated] = await db
       .update(vessels)
       .set(data)
-      .where(and(eq(vessels.id, id), eq(vessels.tenantId, tenantId)))
+      .where(and(eq(vessels.id, id), eq(vessels.tenantId, ctx.tenantId)))
       .returning();
 
     if (!updated) {
@@ -77,10 +76,7 @@ export async function PATCH(
 
     return NextResponse.json({ vessel: updated });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation failed", details: error.errors }, { status: 400 });
-    }
-    console.error("Update vessel error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    if (error instanceof z.ZodError) return validationError(error);
+    return serverError("Update vessel error", error);
   }
 }

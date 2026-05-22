@@ -1,30 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Download, ChevronLeft, Loader2 } from "lucide-react";
+import { OCR_STATUS_STYLE } from "@/lib/constants";
 
 interface DocumentDetail {
-  id: string; title: string; docType: string; scope: string;
-  ocrStatus: string; pageCount: number | null;
-  manufacturer: string | null; modelType: string | null; createdAt: string;
+  id: string;
+  title: string;
+  docType: string;
+  scope: string;
+  ocrStatus: string;
+  pageCount: number | null;
+  manufacturer: string | null;
+  modelType: string | null;
+  createdAt: string;
 }
 
 interface Job {
-  id: string; status: string; progress: number;
-  totalPages: number | null; processedPages: number; error: string | null;
+  id: string;
+  status: string;
+  progress: number;
+  totalPages: number | null;
+  processedPages: number;
+  error: string | null;
 }
-
-const STATUS_STYLE: Record<string, string> = {
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  processing: "bg-blue-50 text-blue-700 border-blue-200",
-  complete: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  failed: "bg-red-50 text-red-700 border-red-200",
-};
 
 export default function DocumentDetailPage() {
   const { id } = useParams();
@@ -33,13 +37,22 @@ export default function DocumentDetailPage() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch(`/api/documents/${id}`).then(r => r.ok ? r.json() : null).then(data => {
-      if (data) { setDoc(data.document); setJob(data.job); setDownloadUrl(data.downloadUrl); }
-      setLoading(false);
-    });
+  const fetchDocument = useCallback(async () => {
+    const res = await fetch(`/api/documents/${id}`);
+    if (res.ok) {
+      const data = await res.json();
+      setDoc(data.document);
+      setJob(data.job);
+      setDownloadUrl(data.downloadUrl);
+    }
+    setLoading(false);
   }, [id]);
 
+  useEffect(() => {
+    fetchDocument();
+  }, [fetchDocument]);
+
+  // Poll job status while processing
   useEffect(() => {
     if (!job || job.status === "complete" || job.status === "failed") return;
     const interval = setInterval(async () => {
@@ -47,17 +60,33 @@ export default function DocumentDetailPage() {
       if (res.ok) {
         const data = await res.json();
         setJob(data.job);
-        if (data.job.status === "complete" || data.job.status === "failed") clearInterval(interval);
+        if (data.job.status === "complete" || data.job.status === "failed") {
+          clearInterval(interval);
+        }
       }
     }, 2000);
     return () => clearInterval(interval);
   }, [id, job?.status]);
 
-  if (loading) return <div className="flex-1 flex items-center justify-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
-  if (!doc) return <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">Document not found</div>;
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!doc) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+        Document not found
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
+      {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-sm mb-6">
         <Link href="/dashboard/documents" className="text-muted-foreground hover:text-foreground flex items-center gap-0.5">
           <ChevronLeft className="size-4" />Documents
@@ -66,6 +95,7 @@ export default function DocumentDetailPage() {
         <span className="font-medium text-foreground truncate">{doc.title}</span>
       </div>
 
+      {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-lg font-semibold text-foreground">{doc.title}</h1>
@@ -80,6 +110,7 @@ export default function DocumentDetailPage() {
         )}
       </div>
 
+      {/* Metadata grid */}
       <div className="grid grid-cols-4 gap-3 mb-6">
         {[
           { label: "Status", value: doc.ocrStatus },
@@ -94,11 +125,12 @@ export default function DocumentDetailPage() {
         ))}
       </div>
 
+      {/* Processing status */}
       {job && (
         <div className="border border-border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-medium text-foreground">Processing</p>
-            <Badge variant="outline" className={`text-[11px] capitalize ${STATUS_STYLE[job.status] || ""}`}>
+            <Badge variant="outline" className={`text-[11px] capitalize ${OCR_STATUS_STYLE[job.status] || ""}`}>
               {job.status}
             </Badge>
           </div>
@@ -106,10 +138,10 @@ export default function DocumentDetailPage() {
             <Progress value={job.progress} className="flex-1 h-1.5" />
             <span className="text-xs text-muted-foreground tabular-nums">{job.progress}%</span>
           </div>
-          {job.error && (
-            <p className="mt-2 text-sm text-destructive">{job.error}</p>
-          )}
-          <p className="mt-2 text-xs text-muted-foreground">{job.processedPages} / {job.totalPages ?? "?"} pages</p>
+          {job.error && <p className="mt-2 text-sm text-destructive">{job.error}</p>}
+          <p className="mt-2 text-xs text-muted-foreground">
+            {job.processedPages} / {job.totalPages ?? "?"} pages
+          </p>
         </div>
       )}
     </div>

@@ -4,7 +4,7 @@ import {
   verifyPassword,
   createToken,
   verifyToken,
-} from "./auth";
+} from "@/lib/auth";
 
 describe("auth.hashPassword + verifyPassword", () => {
   it("hashes a password and verifies a correct match", async () => {

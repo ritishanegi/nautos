@@ -5,7 +5,7 @@ const incr = vi.fn();
 const expire = vi.fn();
 const ttl = vi.fn();
 
-vi.mock("@/lib/redis", () => ({
+vi.mock("@/lib/clients/redis", () => ({
   default: {
     incr: (...args: unknown[]) => incr(...args),
     expire: (...args: unknown[]) => expire(...args),
@@ -13,7 +13,7 @@ vi.mock("@/lib/redis", () => ({
   },
 }));
 
-import { rateLimit } from "./rate-limit";
+import { rateLimit } from "@/lib/server/rate-limit";
 
 describe("rateLimit", () => {
   beforeEach(() => {

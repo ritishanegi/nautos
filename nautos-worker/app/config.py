@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     aws_s3_bucket: str = "nautos-documents"
 
     anthropic_api_key: str = ""
+    gemini_api_key: str = ""
+    llm_provider: str = "gemini"  # "gemini" or "anthropic"
     voyage_api_key: str = ""
     azure_di_endpoint: str = ""
     azure_di_key: str = ""

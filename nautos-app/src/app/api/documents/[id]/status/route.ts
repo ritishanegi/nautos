@@ -1,24 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { documents, ingestionJobs } from "@/lib/db/schema";
+import { requireTenant } from "@/lib/server/api-helpers";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const ctx = requireTenant(req);
+  if (ctx instanceof NextResponse) return ctx;
 
   const { id } = await params;
 
-  // Verify the document belongs to this tenant before returning job status
+  // Verify the document belongs to this tenant
   const [doc] = await db
     .select()
     .from(documents)
-    .where(and(eq(documents.id, id), eq(documents.tenantId, tenantId)))
+    .where(and(eq(documents.id, id), eq(documents.tenantId, ctx.tenantId)))
     .limit(1);
 
   if (!doc) {

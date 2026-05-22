@@ -1,12 +1,12 @@
 import logging
 
 from app.celery_app import celery
-from app.services.storage import StorageService
-from app.services.ocr import OCRService
-from app.services.chunker import ChunkerService
-from app.services.embeddings import EmbeddingService
-from app.services.search import SearchService
-from app.services.vectordb import VectorDBService
+from app.services.ingestion.storage import StorageService
+from app.services.ingestion.ocr import OCRService
+from app.services.ingestion.chunker import ChunkerService
+from app.services.ingestion.embeddings import EmbeddingService
+from app.services.retrieval.search import SearchService
+from app.services.retrieval.vectordb import VectorDBService
 from app.services.db import update_job_status, update_page_count, get_document
 
 logger = logging.getLogger(__name__)

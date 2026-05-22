@@ -1,11 +1,11 @@
 import logging
 import time
 
-from app.services.embeddings import EmbeddingService
-from app.services.search import SearchService
-from app.services.vectordb import VectorDBService
+from app.services.ingestion.embeddings import EmbeddingService
+from app.services.retrieval.search import SearchService
+from app.services.retrieval.vectordb import VectorDBService
 from app.services.privacy import PrivacyService
-from app.services.llm import LLMService
+from app.services.retrieval.llm import LLMService
 
 logger = logging.getLogger(__name__)
 

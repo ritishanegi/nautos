@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,33 +13,45 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Plus, Loader2, ArrowRight } from "lucide-react";
+import { VESSEL_TYPES } from "@/lib/constants";
 
 interface Vessel {
-  id: string; name: string; imo: string | null; vesselType: string | null;
-  flagState: string | null; isActive: boolean; createdAt: string;
+  id: string;
+  name: string;
+  imo: string | null;
+  vesselType: string | null;
+  flagState: string | null;
+  isActive: boolean;
+  createdAt: string;
 }
-
-const VESSEL_TYPES = [
-  "Bulk Carrier", "Container Ship", "Tanker", "LNG Carrier",
-  "Offshore Supply", "Tugboat", "Passenger", "General Cargo", "FPSO", "Other",
-];
 
 export default function VesselsPage() {
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
 
-  async function fetchVessels() {
-    const res = await fetch("/api/vessels");
-    if (res.ok) { const data = await res.json(); setVessels(data.vessels); }
+  const fetchVessels = useCallback(async () => {
+    try {
+      const res = await fetch("/api/vessels");
+      if (res.ok) {
+        const data = await res.json();
+        setVessels(data.vessels);
+      }
+    } catch {
+      // Network error — vessels stay empty
+    }
     setLoading(false);
-  }
+  }, []);
 
-  useEffect(() => { fetchVessels(); }, []);
+  useEffect(() => {
+    fetchVessels();
+  }, [fetchVessels]);
 
   async function handleAdd(v: { name: string; imo: string; vesselType: string; flagState: string }) {
     const res = await fetch("/api/vessels", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(v),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(v),
     });
     if (res.ok) { setShowAdd(false); fetchVessels(); }
   }
@@ -58,7 +70,9 @@ export default function VesselsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+        <div className="flex justify-center py-20">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
       ) : vessels.length === 0 ? (
         <div className="border border-dashed border-border rounded-lg py-16 text-center">
           <p className="text-sm text-muted-foreground mb-3">No vessels added yet</p>
@@ -101,7 +115,8 @@ export default function VesselsPage() {
 }
 
 function AddVesselDialog({ open, onOpenChange, onAdd }: {
-  open: boolean; onOpenChange: (v: boolean) => void;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
   onAdd: (v: { name: string; imo: string; vesselType: string; flagState: string }) => void;
 }) {
   const [name, setName] = useState("");

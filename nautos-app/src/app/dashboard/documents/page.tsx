@@ -7,29 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Plus, Upload, Loader2 } from "lucide-react";
+import { OCR_STATUS_STYLE, DOC_TYPES } from "@/lib/constants";
 
 interface Document {
   id: string;
@@ -41,25 +28,14 @@ interface Document {
   createdAt: string;
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  processing: "bg-blue-50 text-blue-700 border-blue-200",
-  complete: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  failed: "bg-red-50 text-red-700 border-red-200",
-};
-
-const DOC_TYPES = [
-  { value: "maintenance_manual", label: "Maintenance Manual" },
-  { value: "spare_parts_catalog", label: "Spare Parts Catalog" },
-  { value: "safety_certificate", label: "Safety Certificate" },
-  { value: "inspection_report", label: "Inspection Report" },
-  { value: "drawing", label: "Technical Drawing" },
-  { value: "sds", label: "Safety Data Sheet" },
-  { value: "other", label: "Other" },
-];
+interface VesselOption {
+  id: string;
+  name: string;
+}
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [vessels, setVessels] = useState<VesselOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
@@ -73,15 +49,24 @@ export default function DocumentsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+  useEffect(() => {
+    fetchDocuments();
+    // Fetch vessels for the upload dialog
+    fetch("/api/vessels")
+      .then((res) => res.json())
+      .then((data) => setVessels(data.vessels || []))
+      .catch(() => {});
+  }, [fetchDocuments]);
 
-  async function handleUpload(file: File, title: string, docType: string) {
+  async function handleUpload(file: File, title: string, docType: string, vesselId: string | null) {
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
     formData.append("title", title);
     formData.append("docType", docType);
-    formData.append("scope", "vessel");
+    formData.append("scope", vesselId ? "vessel" : "fleet");
+    if (vesselId) formData.append("vesselId", vesselId);
+
     const res = await fetch("/api/documents/upload", { method: "POST", body: formData });
     if (res.ok) { setShowUpload(false); fetchDocuments(); }
     setUploading(false);
@@ -134,7 +119,7 @@ export default function DocumentsPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground capitalize">{doc.docType.replace(/_/g, " ")}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={`text-[11px] capitalize ${STATUS_STYLE[doc.ocrStatus] || ""}`}>
+                    <Badge variant="outline" className={`text-[11px] capitalize ${OCR_STATUS_STYLE[doc.ocrStatus] || ""}`}>
                       {doc.ocrStatus}
                     </Badge>
                   </TableCell>
@@ -147,21 +132,31 @@ export default function DocumentsPage() {
         </div>
       )}
 
-      <UploadDialog open={showUpload} onOpenChange={setShowUpload} onUpload={handleUpload} uploading={uploading} />
+      <UploadDialog
+        open={showUpload}
+        onOpenChange={setShowUpload}
+        onUpload={handleUpload}
+        uploading={uploading}
+        vessels={vessels}
+      />
     </div>
   );
 }
 
-function UploadDialog({ open, onOpenChange, onUpload, uploading }: {
-  open: boolean; onOpenChange: (v: boolean) => void;
-  onUpload: (file: File, title: string, docType: string) => void; uploading: boolean;
+function UploadDialog({ open, onOpenChange, onUpload, uploading, vessels }: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onUpload: (file: File, title: string, docType: string, vesselId: string | null) => void;
+  uploading: boolean;
+  vessels: VesselOption[];
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [docType, setDocType] = useState("maintenance_manual");
+  const [vesselId, setVesselId] = useState<string>("none");
   const [dragOver, setDragOver] = useState(false);
 
-  function reset() { setFile(null); setTitle(""); setDocType("maintenance_manual"); }
+  function reset() { setFile(null); setTitle(""); setDocType("maintenance_manual"); setVesselId("none"); }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault(); setDragOver(false);
@@ -217,10 +212,25 @@ function UploadDialog({ open, onOpenChange, onUpload, uploading }: {
               </SelectContent>
             </Select>
           </div>
+          {vessels.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Vessel (optional)</Label>
+              <Select value={vesselId} onValueChange={setVesselId}>
+                <SelectTrigger><SelectValue placeholder="No vessel (fleet-wide)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No vessel (fleet-wide)</SelectItem>
+                  {vessels.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => file && title && onUpload(file, title, docType)} disabled={!file || !title || uploading}>
+          <Button
+            onClick={() => file && title && onUpload(file, title, docType, vesselId === "none" ? null : vesselId)}
+            disabled={!file || !title || uploading}
+          >
             {uploading ? <><Loader2 className="size-4 mr-1.5 animate-spin" />Uploading...</> : "Upload"}
           </Button>
         </DialogFooter>

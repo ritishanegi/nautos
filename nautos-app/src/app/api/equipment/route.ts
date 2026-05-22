@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { equipment } from "@/lib/db/schema";
+import { requireTenant, validationError, serverError } from "@/lib/server/api-helpers";
 import { eq, desc, and } from "drizzle-orm";
 import { z } from "zod";
 
@@ -12,10 +13,8 @@ const createEquipmentSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const ctx = requireTenant(req);
+  if (ctx instanceof NextResponse) return ctx;
 
   const url = new URL(req.url);
   const vesselId = url.searchParams.get("vesselId");
@@ -24,22 +23,20 @@ export async function GET(req: NextRequest) {
     ? await db
         .select()
         .from(equipment)
-        .where(and(eq(equipment.vesselId, vesselId), eq(equipment.tenantId, tenantId)))
+        .where(and(eq(equipment.vesselId, vesselId), eq(equipment.tenantId, ctx.tenantId)))
         .orderBy(desc(equipment.createdAt))
     : await db
         .select()
         .from(equipment)
-        .where(eq(equipment.tenantId, tenantId))
+        .where(eq(equipment.tenantId, ctx.tenantId))
         .orderBy(desc(equipment.createdAt));
 
   return NextResponse.json({ equipment: result });
 }
 
 export async function POST(req: NextRequest) {
-  const tenantId = req.headers.get("x-tenant-id");
-  if (!tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const ctx = requireTenant(req);
+  if (ctx instanceof NextResponse) return ctx;
 
   try {
     const body = await req.json();
@@ -48,7 +45,7 @@ export async function POST(req: NextRequest) {
     const [item] = await db
       .insert(equipment)
       .values({
-        tenantId,
+        tenantId: ctx.tenantId,
         manufacturer: data.manufacturer,
         modelType: data.modelType,
         serialNumber: data.serialNumber || null,
@@ -58,10 +55,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ equipment: item }, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation failed", details: error.errors }, { status: 400 });
-    }
-    console.error("Create equipment error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    if (error instanceof z.ZodError) return validationError(error);
+    return serverError("Create equipment error", error);
   }
 }

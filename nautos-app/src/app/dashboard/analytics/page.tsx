@@ -2,18 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { OCR_STATUS_COLOR } from "@/lib/constants";
 
 interface Overview {
-  totalDocuments: number; totalVessels: number; totalUsers: number;
-  totalQueries: number; queriesToday: number; avgResponseTimeMs: number;
+  totalDocuments: number;
+  totalVessels: number;
+  totalUsers: number;
+  totalQueries: number;
+  queriesToday: number;
+  avgResponseTimeMs: number;
 }
-interface DailyQuery { date: string; count: number; }
-interface DocStatus { status: string; count: number; }
 
-const STATUS_COLOR: Record<string, string> = {
-  complete: "bg-emerald-500", processing: "bg-blue-500",
-  pending: "bg-amber-500", failed: "bg-red-500",
-};
+interface DailyQuery {
+  date: string;
+  count: number;
+}
+
+interface DocStatus {
+  status: string;
+  count: number;
+}
 
 export default function AnalyticsPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -22,15 +30,26 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/analytics").then(r => r.json()).then(data => {
-      setOverview(data.overview); setDailyQueries(data.dailyQueries);
-      setDocsByStatus(data.docsByStatus); setLoading(false);
-    }).catch(() => setLoading(false));
+    fetch("/api/analytics")
+      .then((r) => r.json())
+      .then((data) => {
+        setOverview(data.overview);
+        setDailyQueries(data.dailyQueries);
+        setDocsByStatus(data.docsByStatus);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex-1 flex items-center justify-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  const maxDaily = Math.max(...dailyQueries.map(d => d.count), 1);
+  const maxDaily = Math.max(...dailyQueries.map((d) => d.count), 1);
 
   return (
     <div className="p-6 lg:p-8 max-w-6xl">
@@ -98,7 +117,10 @@ export default function AnalyticsPage() {
                       <span className="text-xs text-muted-foreground tabular-nums">{ds.count}</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-1.5">
-                      <div className={`h-1.5 rounded-full ${STATUS_COLOR[ds.status] || "bg-muted-foreground"}`} style={{ width: `${pct}%` }} />
+                      <div
+                        className={`h-1.5 rounded-full ${OCR_STATUS_COLOR[ds.status] || "bg-muted-foreground"}`}
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
                   </div>
                 );

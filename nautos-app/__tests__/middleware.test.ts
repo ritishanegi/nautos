@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { NextRequest } from "next/server";
-import { createToken } from "./lib/auth";
-import { middleware } from "./middleware";
+import { createToken } from "@/lib/auth";
+import { middleware } from "@/middleware";
 
 beforeAll(() => {
   process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret-must-be-at-least-32-chars-long-for-jose";

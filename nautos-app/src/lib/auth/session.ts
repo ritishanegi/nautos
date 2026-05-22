@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { verifyToken, type TokenPayload } from "./auth";
+import { verifyToken, type TokenPayload } from "./index";
 
 const COOKIE_NAME = "nautos_token";
 
