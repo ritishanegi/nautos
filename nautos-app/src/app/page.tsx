@@ -33,16 +33,7 @@ export default function Home() {
         }}
       />
 
-      {/* NEW: Ship Blueprint Background Watermark */}
-      <div className="absolute right-[-10%] top-[10%] w-[80%] h-[80vh] pointer-events-none opacity-15 mix-blend-screen z-0">
-        <Image
-          src="/images/ship-blueprint.svg" 
-          alt="Ship Blueprint"
-          fill
-          className="object-contain object-right"
-          priority
-        />
-      </div>
+      
 
       <header className="relative z-10 flex items-center justify-between px-10 py-4 border-b border-slate-700 backdrop-blur-sm bg-[#0a1628]/50">
         <div className="flex items-center gap-2 text-lg font-semibold tracking-wide text-white">
