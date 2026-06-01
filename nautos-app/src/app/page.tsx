@@ -1,29 +1,46 @@
-import Link from "next/link";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
+"use client";
 
-export default function Home() {
-  const features = [
-    {
-      num: "01",
-      title: "Document processing",
-      desc: "OCR extracts text, tables, and key-value pairs from scanned PDFs. Documents are chunked, embedded, and indexed automatically.",
-    },
-    {
-      num: "02",
-      title: "AI-powered search",
-      desc: "Hybrid search combines keyword matching with semantic understanding. Part numbers, IMO codes, and technical terms are found exactly.",
-    },
-    {
-      num: "03",
-      title: "Fleet-wide knowledge",
-      desc: "Documents are scoped to vessels, shared across your fleet, or contributed to a master library that benefits every client.",
-    },
-  ];
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Eye, EyeOff } from "lucide-react";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const form = new FormData(e.currentTarget);
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: form.get("email"),
+        password: form.get("password"),
+      }),
+    });
+
+    if (res.ok) {
+      router.push("/dashboard");
+    } else {
+      const data = await res.json();
+      setError(data.error || "Login failed");
+    }
+    setLoading(false);
+  }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#0a1628] text-white relative">
-      {/* Existing Grid Pattern */}
+    <div className="min-h-screen flex bg-[#0a1628] text-slate-200 relative overflow-hidden">
+      {/* Global Grid Pattern Background */}
       <div
         className="absolute inset-0 pointer-events-none z-0"
         style={{
@@ -33,98 +50,116 @@ export default function Home() {
         }}
       />
 
-      
-
-      <header className="relative z-10 flex items-center justify-between px-10 py-4 border-b border-slate-700 backdrop-blur-sm bg-[#0a1628]/50">
-        <div className="flex items-center gap-2 text-lg font-semibold tracking-wide text-white">
+      {/* Left — Brand Panel */}
+      <div className="relative hidden lg:flex lg:w-[480px] flex-col justify-between p-10 border-r border-slate-700/50 bg-[#0a1628]/50 backdrop-blur-sm z-10">
+        
+        {/* Logo Header */}
+        <div className="relative z-10 flex items-center gap-2 text-lg font-semibold tracking-wide text-white">
           <div className="w-5 h-5 rounded-full border border-amber-500" />
           nautos
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            className="text-xs uppercase text-slate-300 hover:text-white"
-            asChild
-          >
-            <Link href="/auth/login">Log in</Link>
-          </Button>
-          <Button
-            className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs uppercase rounded-none px-4 h-8"
-            asChild
-          >
-            <Link href="/auth/register">Start free trial</Link>
-          </Button>
-        </div>
-      </header>
 
-      <section className="relative z-10 flex flex-col items-start justify-center px-10 py-32 max-w-6xl mx-auto">
-        <div className="flex items-center gap-3 mb-5">
-          <span className="block w-8 h-px bg-amber-500 opacity-50" />
-          <span className="text-xs uppercase tracking-[0.25em] text-amber-500">
-            Maritime Intelligence Platform
-          </span>
-          <span className="block w-8 h-px bg-amber-500 opacity-50" />
-        </div>
-
-        <h1 className="text-6xl font-bold leading-tight tracking-tight mb-6 max-w-3xl">
-          Find answers in your
-          <br />
-          <em className="italic text-slate-200">maritime documents</em>
-        </h1>
-
-        <p className="text-lg text-slate-300 max-w-xl mb-10">
-          Upload maintenance manuals and technical documents. Ask questions in plain English.
-          Get answers with exact page citations.
-        </p>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm uppercase font-semibold rounded-none px-8 h-12"
-            asChild
-          >
-            <Link href="/auth/register">Get started</Link>
-          </Button>
-          <Button
-            variant="outline"
-            className="border-slate-600 bg-slate-800/50 backdrop-blur-sm text-slate-200 hover:text-white hover:bg-slate-800 text-sm uppercase font-semibold rounded-none px-8 h-12"
-            asChild
-          >
-            <Link href="/auth/login">Log in</Link>
-          </Button>
-        </div>
-
-        <span className="absolute bottom-4 left-10 text-[10px] uppercase text-slate-500 font-mono">
-          25°47′N 80°13′W
-        </span>
-        <span className="absolute bottom-4 right-10 text-[10px] uppercase text-slate-500 font-mono">
-          SYS_VER: 2.4.1
-        </span>
-      </section>
-
-      <div className="bg-slate-700 h-px relative z-10" />
-
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 bg-[#0a1628]/80 backdrop-blur-sm">
-        {features.map((feature, index) => (
-          <div
-            key={feature.num}
-            className={
-              "px-10 py-12 hover:bg-slate-800/50 transition-colors " +
-              (index < features.length - 1 ? "border-r border-slate-700" : "")
-            }
-          >
-            <div className="text-xs font-mono tracking-[0.2em] text-amber-500 mb-4">
-              {feature.num} //
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-3">{feature.title}</h2>
-            <p className="text-sm leading-relaxed text-slate-400">{feature.desc}</p>
+        {/* Core Messaging */}
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="block w-6 h-px bg-amber-500 opacity-50" />
+            <span className="text-[10px] uppercase tracking-[0.25em] text-amber-500 font-mono">
+              Secure Access Portal
+            </span>
           </div>
-        ))}
+          <h1 className="text-3xl font-bold leading-tight text-white mb-4">
+            Maritime intelligence <br />
+            <em className="italic text-slate-400 font-light">at your command.</em>
+          </h1>
+          <p className="text-sm text-slate-400 leading-relaxed max-w-[320px]">
+            Authenticate to access fleet-wide technical manuals, compliance records, and your dedicated AI co-pilot.
+          </p>
+        </div>
+
+        {/* Footer Telemetry */}
+        <div className="relative z-10 flex justify-between items-center text-[10px] uppercase text-slate-500 font-mono">
+          <span>Martech Systems</span>
+          <span>SYS_VER: 2.4.1</span>
+        </div>
       </div>
 
-      <footer className="relative z-10 flex items-center justify-between px-10 py-6 border-t border-slate-700 bg-[#0a1628]">
-        <span className="text-xs font-mono text-slate-500">MARTECH_SYSTEMS_LTD</span>
-        <span className="text-xs font-mono text-amber-500/70">NAUTOS.AI</span>
-      </footer>
-    </main>
+      {/* Right — Form Panel */}
+      <div className="flex-1 relative flex items-center justify-center px-6 z-10">
+        
+        {/* Form Container */}
+        <div className="w-full max-w-sm relative z-10 bg-[#0a1628]/80 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
+          <div className="mb-8 text-center lg:text-left">
+            <h2 className="text-2xl font-semibold text-white tracking-tight">System Login</h2>
+            <p className="mt-2 text-sm text-slate-400 font-mono">
+              ENTER_CREDENTIALS_TO_PROCEED
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="rounded-md border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400 font-mono text-center">
+                ERR: {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-slate-300 font-mono text-xs uppercase tracking-wider">Email Designation</Label>
+              <Input 
+                id="email" 
+                name="email" 
+                type="email" 
+                required 
+                placeholder="crew@vessel.com" 
+                autoComplete="email" 
+                className="bg-slate-900/80 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-amber-500/50 rounded-none h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-slate-300 font-mono text-xs uppercase tracking-wider">Passcode</Label>
+              <div className="relative">
+                <Input 
+                  id="password" 
+                  name="password" 
+                  type={showPassword ? "text" : "password"} 
+                  required 
+                  placeholder="••••••••" 
+                  autoComplete="current-password" 
+                  className="bg-slate-900/80 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-amber-500/50 rounded-none h-11 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 focus:outline-none transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm uppercase font-semibold rounded-none h-11 tracking-wide mt-2"
+            >
+              {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {loading ? "AUTHENTICATING..." : "INITIALIZE SESSION"}
+            </Button>
+          </form>
+
+          <div className="mt-8 pt-6 border-t border-slate-800/50 text-center text-sm text-slate-400">
+            Unregistered vessel?{" "}
+            <Link href="/auth/register" className="font-medium text-amber-500 hover:text-amber-400 hover:underline transition-colors">
+              Request access clearance
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
