@@ -101,10 +101,10 @@ export default function LoginPage() {
         </div>
 
         {/* Overlay to ensure form readability */}
-        <div className="absolute inset-0 z-5 bg-[#0a1628]/30" />
+        <div className="absolute inset-0 z-[1] bg-[#0a1628]/50" />
 
         {/* Form Container */}
-        <div className="w-full max-w-sm relative z-10 bg-[#0a1628]/40 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
+        <div className="w-full max-w-sm relative z-[2] bg-[#0a1628]/40 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
           <div className="mb-8 text-center lg:text-left">
             <h2 className="text-2xl font-semibold text-white tracking-tight">System Login</h2>
             <p className="mt-2 text-sm text-slate-400 font-mono">
