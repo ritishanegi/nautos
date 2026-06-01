@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -84,96 +85,94 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right — Form Panel with Image on the right (large screens) */}
+      {/* Right — Form Panel */}
       <div className="flex-1 relative flex items-center justify-center px-6">
-        {/* Background image from public/images on the right half */}
-        <div className="absolute inset-y-0 right-0 z-0 w-full lg:w-1/2 overflow-hidden">
+        
+        {/* Background image with light overlay for readability */}
+        <div className="absolute inset-0 z-0 overflow-hidden">
           <Image
-            src="/images/istockphoto-1317779371-612x612.jpg"
+            src="/images/venti-views-1cqIcrWFQBI-unsplash.jpg"
             alt="Ship Background"
             fill
-            className="object-cover object-center filter brightness-110 contrast-110"
+            className="object-cover object-center brightness-100 contrast-100"
             priority
           />
         </div>
 
-        {/* Light overlay to preserve contrast while keeping the image visible */}
-        <div className="absolute inset-0 z-10 bg-[#0a1628]/10 backdrop-blur-sm" />
+        {/* Overlay to ensure form readability */}
+        <div className="absolute inset-0 z-5 bg-[#0a1628]/30 backdrop-blur-sm" />
 
-        {/* Right half: center the form both vertically and horizontally */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center relative z-20">
-          {/* Form Container */}
-          <div className="w-full max-w-sm bg-[#0a1628]/60 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
-            <div className="mb-8 text-center lg:text-left">
-              <h2 className="text-2xl font-semibold text-white tracking-tight">System Login</h2>
-              <p className="mt-2 text-sm text-slate-400 font-mono">
-                ENTER_CREDENTIALS_TO_PROCEED
-              </p>
+        {/* Form Container */}
+        <div className="w-full max-w-sm relative z-10 bg-[#0a1628]/40 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
+          <div className="mb-8 text-center lg:text-left">
+            <h2 className="text-2xl font-semibold text-white tracking-tight">System Login</h2>
+            <p className="mt-2 text-sm text-slate-400 font-mono">
+              ENTER_CREDENTIALS_TO_PROCEED
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="rounded-md border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400 font-mono text-center">
+                ERR: {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-slate-300 font-mono text-xs uppercase tracking-wider">Email Designation</Label>
+              <Input 
+                id="email" 
+                name="email" 
+                type="email" 
+                required 
+                placeholder="crew@vessel.com" 
+                autoComplete="email" 
+                className="bg-slate-900/80 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-amber-500/50 rounded-none h-11"
+              />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <div className="rounded-md border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400 font-mono text-center">
-                  ERR: {error}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-300 font-mono text-xs uppercase tracking-wider">Email Designation</Label>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-slate-300 font-mono text-xs uppercase tracking-wider">Passcode</Label>
+              <div className="relative">
                 <Input 
-                  id="email" 
-                  name="email" 
-                  type="email" 
+                  id="password" 
+                  name="password" 
+                  type={showPassword ? "text" : "password"} 
                   required 
-                  placeholder="crew@vessel.com" 
-                  autoComplete="email" 
-                  className="bg-slate-900/80 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-amber-500/50 rounded-none h-11"
+                  placeholder="••••••••" 
+                  autoComplete="current-password" 
+                  className="bg-slate-900/80 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-amber-500/50 rounded-none h-11 pr-10"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 focus:outline-none transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-300 font-mono text-xs uppercase tracking-wider">Passcode</Label>
-                <div className="relative">
-                  <Input 
-                    id="password" 
-                    name="password" 
-                    type={showPassword ? "text" : "password"} 
-                    required 
-                    placeholder="••••••••" 
-                    autoComplete="current-password" 
-                    className="bg-slate-900/80 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-amber-500/50 rounded-none h-11 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 focus:outline-none transition-colors"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <Button 
-                type="submit" 
-                disabled={loading}
-                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm uppercase font-semibold rounded-none h-11 tracking-wide mt-2"
-              >
-                {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {loading ? "AUTHENTICATING..." : "INITIALIZE SESSION"}
-              </Button>
-            </form>
-
-            <div className="mt-8 pt-6 border-t border-slate-800/50 text-center text-sm text-slate-400">
-              Unregistered vessel?{" "}
-              <Link href="/auth/register" className="font-medium text-amber-500 hover:text-amber-400 hover:underline transition-colors">
-                Request access clearance
-              </Link>
             </div>
+
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm uppercase font-semibold rounded-none h-11 tracking-wide mt-2"
+            >
+              {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {loading ? "AUTHENTICATING..." : "INITIALIZE SESSION"}
+            </Button>
+          </form>
+
+          <div className="mt-8 pt-6 border-t border-slate-800/50 text-center text-sm text-slate-400">
+            Unregistered vessel?{" "}
+            <Link href="/auth/register" className="font-medium text-amber-500 hover:text-amber-400 hover:underline transition-colors">
+              Request access clearance
+            </Link>
           </div>
         </div>
       </div>
