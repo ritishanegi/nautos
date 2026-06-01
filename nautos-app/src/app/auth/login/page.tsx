@@ -96,6 +96,7 @@ export default function LoginPage() {
             fill
             className="object-cover object-center brightness-100 contrast-100"
             priority
+            unoptimized
           />
         </div>
 

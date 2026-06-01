@@ -41,6 +41,7 @@ export default function Home() {
           fill
           className="object-cover object-right"
           priority
+          unoptimized
         />
         {/* Gradient mask to smoothly fade the image into the dark background on the left and bottom */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628] via-[#0a1628]/80 to-transparent" />
