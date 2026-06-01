@@ -100,7 +100,7 @@ export default function LoginPage() {
         </div>
 
         {/* Overlay to ensure form readability */}
-        <div className="absolute inset-0 z-5 bg-[#0a1628]/30 backdrop-blur-sm" />
+        <div className="absolute inset-0 z-5 bg-[#0a1628]/30" />
 
         {/* Form Container */}
         <div className="w-full max-w-sm relative z-10 bg-[#0a1628]/40 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
