@@ -93,19 +93,13 @@ export default function LoginPage() {
           src="/images/istockphoto-1317779371-612x612.jpg"
           alt="Ship Background"
           fill
-          className="object-cover object-center"
+          className="object-cover object-center filter brightness-110 contrast-110"
           priority
         />
       </div>
 
-      {/* Medium overlay so the image remains visible behind the form */}
-      <div className="absolute inset-0 z-10 bg-[#0a1628]/40 backdrop-blur-sm" />
-
-        {/* Content wrapper: split into two columns so the right half holds the form centered */}
-        <div className="relative z-20 w-full max-w-6xl flex">
-
-          {/* Empty left half (creates the visual 'right side') */}
-          <div className="hidden lg:block lg:w-1/2" />
+      {/* Light overlay to preserve contrast while keeping the image visible */}
+      <div className="absolute inset-0 z-10 bg-[#0a1628]/10 backdrop-blur-sm" />
 
           {/* Right half: center the form both vertically and horizontally */}
           <div className="w-full lg:w-1/2 flex items-center justify-center">
