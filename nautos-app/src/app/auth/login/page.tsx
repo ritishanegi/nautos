@@ -101,19 +101,25 @@ export default function LoginPage() {
         {/* Heavy dark overlay to ensure the form is readable over the photo */}
         <div className="absolute inset-0 z-10 bg-[#0a1628]/85 backdrop-blur-sm" />
 
-        {/* Content wrapper: form on left (over background) */}
-        <div className="relative z-20 w-full max-w-5xl flex items-center gap-8">
+        {/* Content wrapper: split into two columns so the right half holds the form centered */}
+        <div className="relative z-20 w-full max-w-6xl flex">
 
-          {/* Form Container */}
-          <div className="w-full max-w-sm bg-[#0a1628]/60 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
-          <div className="mb-8 text-center lg:text-left">
-            <h2 className="text-2xl font-semibold text-white tracking-tight">System Login</h2>
-            <p className="mt-2 text-sm text-slate-400 font-mono">
-              ENTER_CREDENTIALS_TO_PROCEED
-            </p>
-          </div>
+          {/* Empty left half (creates the visual 'right side') */}
+          <div className="hidden lg:block lg:w-1/2" />
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Right half: center the form both vertically and horizontally */}
+          <div className="w-full lg:w-1/2 flex items-center justify-center">
+
+            {/* Form Container */}
+            <div className="w-full max-w-sm bg-[#0a1628]/60 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
+              <div className="mb-8 text-center lg:text-left">
+                <h2 className="text-2xl font-semibold text-white tracking-tight">System Login</h2>
+                <p className="mt-2 text-sm text-slate-400 font-mono">
+                  ENTER_CREDENTIALS_TO_PROCEED
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="rounded-md border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400 font-mono text-center">
                 ERR: {error}
@@ -168,17 +174,17 @@ export default function LoginPage() {
               {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
               {loading ? "AUTHENTICATING..." : "INITIALIZE SESSION"}
             </Button>
-          </form>
+              </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-800/50 text-center text-sm text-slate-400">
-            Unregistered vessel?{" "}
-            <Link href="/auth/register" className="font-medium text-amber-500 hover:text-amber-400 hover:underline transition-colors">
-              Request access clearance
-            </Link>
-          </div>
-          </div>
+              <div className="mt-8 pt-6 border-t border-slate-800/50 text-center text-sm text-slate-400">
+                Unregistered vessel?{" "}
+                <Link href="/auth/register" className="font-medium text-amber-500 hover:text-amber-400 hover:underline transition-colors">
+                  Request access clearance
+                </Link>
+              </div>
+            </div>
 
-          {/* (background image covers the right area) */}
+          </div>
 
         </div>
       </div>
