@@ -91,7 +91,7 @@ export default function LoginPage() {
         {/* Background image with light overlay for readability */}
         <div className="absolute inset-0 z-0 overflow-hidden">
           <Image
-            src="/images/venti-views-1cqIcrWFQBI-unsplash.jpg"
+            src="/images/istockphoto-1317779371-612x612.jpg"
             alt="Ship Background"
             fill
             className="object-cover object-center brightness-100 contrast-100"
