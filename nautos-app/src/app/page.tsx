@@ -33,10 +33,10 @@ export default function Home() {
         }}
       />
 
-      {/* NEW: Ship Background Image */}
+      {/* Ship Background Image */}
       <div className="absolute right-0 top-0 w-full md:w-[70%] h-[80vh] pointer-events-none z-0 overflow-hidden opacity-30 mix-blend-screen">
         <Image
-          src="/istockphoto-1317779371-612x612.jpg"
+          src="/images/istockphoto-1317779371-612x612.jpg"
           alt="Maritime Ship"
           fill
           className="object-cover object-right"
@@ -108,6 +108,35 @@ export default function Home() {
         <span className="absolute bottom-4 left-10 text-[10px] uppercase text-slate-500 font-mono">
           25°47′N 80°13′W
         </span>
-        <span className="absolute bottom-4 right-10 text>
-        </main>
-        
+        <span className="absolute bottom-4 right-10 text-[10px] uppercase text-slate-500 font-mono">
+          SYS_VER: 2.4.1
+        </span>
+      </section>
+
+      <div className="bg-slate-700 h-px relative z-10" />
+
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 bg-[#0a1628]/80 backdrop-blur-sm">
+        {features.map((feature, index) => (
+          <div
+            key={feature.num}
+            className={
+              "px-10 py-12 hover:bg-slate-800/50 transition-colors " +
+              (index < features.length - 1 ? "border-r border-slate-700" : "")
+            }
+          >
+            <div className="text-xs font-mono tracking-[0.2em] text-amber-500 mb-4">
+              {feature.num} //
+            </div>
+            <h2 className="text-xl font-semibold text-white mb-3">{feature.title}</h2>
+            <p className="text-sm leading-relaxed text-slate-400">{feature.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <footer className="relative z-10 flex items-center justify-between px-10 py-6 border-t border-slate-700 bg-[#0a1628]">
+        <span className="text-xs font-mono text-slate-500">MARTECH_SYSTEMS_LTD</span>
+        <span className="text-xs font-mono text-amber-500/70">NAUTOS.AI</span>
+      </footer>
+    </main>
+  );
+}
