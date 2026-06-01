@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,11 +87,17 @@ export default function LoginPage() {
       {/* Right — Form Panel with Image Background */}
       <div className="flex-1 relative flex items-center justify-center px-6">
         
-        {/* Right Side Background Image */}
-        <div 
-          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('/istockphoto-1317779371-612x612.jpg')" }}
-        />
+        {/* Right Side Background Image using Next/Image */}
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          <Image
+            src="/istockphoto-1317779371-612x612.jpg"
+            alt="Ship Background"
+            fill
+            className="object-cover object-center"
+            priority
+          />
+        </div>
+        
         {/* Heavy dark overlay to ensure the form is readable over the photo */}
         <div className="absolute inset-0 z-0 bg-[#0a1628]/85 backdrop-blur-sm" />
 
