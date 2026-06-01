@@ -87,19 +87,19 @@ export default function LoginPage() {
       {/* Right — Form Panel with Image on the right (large screens) */}
       <div className="flex-1 relative flex items-center justify-center px-6">
 
-        {/* Background image from public/images (positioned to the right) */}
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          <Image
-            src="/images/istockphoto-1317779371-612x612.jpg"
-            alt="Ship Background"
-            fill
-            className="object-cover object-right"
-            priority
-          />
-        </div>
+{/* Background image from public/images on the right half */}
+      <div className="absolute inset-y-0 right-0 z-0 w-full lg:w-1/2 overflow-hidden">
+        <Image
+          src="/images/istockphoto-1317779371-612x612.jpg"
+          alt="Ship Background"
+          fill
+          className="object-cover object-center"
+          priority
+        />
+      </div>
 
-        {/* Heavy dark overlay to ensure the form is readable over the photo */}
-        <div className="absolute inset-0 z-10 bg-[#0a1628]/85 backdrop-blur-sm" />
+      {/* Medium overlay so the image remains visible behind the form */}
+      <div className="absolute inset-0 z-10 bg-[#0a1628]/40 backdrop-blur-sm" />
 
         {/* Content wrapper: split into two columns so the right half holds the form centered */}
         <div className="relative z-20 w-full max-w-6xl flex">
