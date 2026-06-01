@@ -4,7 +4,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,18 +89,15 @@ export default function LoginPage() {
         
         {/* Background image with light overlay for readability */}
         <div className="absolute inset-0 z-0 overflow-hidden">
-          <Image
+          <img
             src="/images/istockphoto-1317779371-612x612.jpg"
             alt="Ship Background"
-            fill
-            className="object-cover object-center brightness-100 contrast-100"
-            priority
-            unoptimized
+            className="w-full h-full object-cover object-center brightness-100 contrast-100"
           />
         </div>
 
         {/* Overlay to ensure form readability */}
-        <div className="absolute inset-0 z-[1] bg-[#0a1628]/50" />
+        <div className="absolute inset-0 z-[1] bg-transparent" />
 
         {/* Form Container */}
         <div className="w-full max-w-sm relative z-[2] bg-[#0a1628]/40 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
