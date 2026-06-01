@@ -84,25 +84,17 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right — Form Panel with Image Background */}
+      {/* Right — Form Panel with Image on the right (large screens) */}
       <div className="flex-1 relative flex items-center justify-center px-6">
-        
-        {/* Right Side Background Image using Next/Image */}
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          <Image
-            src="/istockphoto-1317779371-612x612.jpg"
-            alt="Ship Background"
-            fill
-            className="object-cover object-center"
-            priority
-          />
-        </div>
-        
+
         {/* Heavy dark overlay to ensure the form is readable over the photo */}
         <div className="absolute inset-0 z-0 bg-[#0a1628]/85 backdrop-blur-sm" />
 
-        {/* Form Container */}
-        <div className="w-full max-w-sm relative z-10 bg-[#0a1628]/60 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
+        {/* Content wrapper: form on left, picture on right (shows on lg) */}
+        <div className="relative z-10 w-full max-w-5xl flex items-center gap-8">
+
+          {/* Form Container */}
+          <div className="w-full max-w-sm bg-[#0a1628]/60 p-8 border border-slate-700/50 shadow-2xl rounded-sm backdrop-blur-md">
           <div className="mb-8 text-center lg:text-left">
             <h2 className="text-2xl font-semibold text-white tracking-tight">System Login</h2>
             <p className="mt-2 text-sm text-slate-400 font-mono">
@@ -173,6 +165,19 @@ export default function LoginPage() {
               Request access clearance
             </Link>
           </div>
+          </div>
+
+          {/* Right image panel (visible on large screens) */}
+          <div className="hidden lg:block lg:w-1/2 relative h-[420px] rounded-sm overflow-hidden border border-slate-700/50">
+            <Image
+              src="/images/istockphoto-1317779371-612x612.jpg"
+              alt="Ship"
+              fill
+              className="object-cover object-center"
+              priority
+            />
+          </div>
+
         </div>
       </div>
     </div>
