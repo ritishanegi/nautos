@@ -50,7 +50,7 @@ services:
 
   app:
     build:
-      context: ./nautos-app
+      context: ./apps/web    # Changed from ./nautos-app
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
@@ -63,8 +63,8 @@ services:
       - REDIS_HOST=redis
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     volumes:
-      - ./nautos-app/src:/app/src
-      - ./nautos-app/public:/app/public
+      - ./apps/web/src:/app/src          # Changed from ./nautos-app/src
+      - ./apps/web/public:/app/public
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,7 +75,7 @@ services:
 
   worker-api:
     build:
-      context: ./nautos-worker
+      context: ./apps/worker    # Changed from ./nautos-worker
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
@@ -83,11 +83,12 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql://nautos_user:nautos_dev_pass@postgres:5432/nautos
+      - environment:
+      - DATABASE_URL=postgresql://${DB_USER:-nautos_user}:${DB_PASS:-nautos_dev_pass}@postgres:5432/${DB_NAME:-nautos}
       - REDIS_URL=redis://redis:6379/0
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     volumes:
-      - ./nautos-worker/app:/worker/app
+      - ./apps/worker/app:/worker/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,18 +99,19 @@ services:
 
   worker-celery:
     build:
-      context: ./nautos-worker
+      context: ./apps/worker    # Changed from ./nautos-worker
       dockerfile: Dockerfile
     restart: unless-stopped
     command: celery -A app.celery_app:celery worker --loglevel=info --concurrency=2
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql://nautos_user:nautos_dev_pass@postgres:5432/nautos
+      - environment:
+      - DATABASE_URL=postgresql://${DB_USER:-nautos_user}:${DB_PASS:-nautos_dev_pass}@postgres:5432/${DB_NAME:-nautos}
       - REDIS_URL=redis://redis:6379/0
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     volumes:
-      - ./nautos-worker/app:/worker/app
+      - ./apps/worker/app:/worker/app
     depends_on:
       postgres:
         condition: service_healthy
