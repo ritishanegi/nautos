@@ -1,6 +1,6 @@
 # NAUTOS FOLDER STRUCTURE
 
-Clear, organized layout for solo dev + future team growth.
+Clean pnpm monorepo layout for solo dev + future team growth.
 
 ---
 
@@ -8,10 +8,11 @@ Clear, organized layout for solo dev + future team growth.
 
 ```
 nautos/
-├── services/          ← All code (organized by domain)
-├── db/                ← Database migrations
+├── apps/              ← Deployable services (web + worker)
+├── packages/          ← Shared packages (database schema)
 ├── docs/              ← Documentation (this file lives here)
-├── infra/             ← Deployment configs
+├── pnpm-workspace.yaml ← Monorepo config
+├── docker-compose.yml ← Single deployment config
 ├── CLAUDE.md          ← Claude documentation
 ├── AUDIT.md           ← Security audit log
 ├── ROADMAP.md         ← Feature roadmap
@@ -20,125 +21,108 @@ nautos/
 
 ---
 
-## SERVICES/ — WHERE THE CODE LIVES
+## APPS/ — DEPLOYABLE SERVICES
 
-### `services/frontend/`
-**Next.js UI only** — React components, pages, static assets.
+### `apps/web/`
+**Next.js full-stack** — Frontend UI + REST API + authentication.
 
 ```
-services/frontend/
-├── src/app/
-│   ├── (dashboard)/     ← Protected dashboard pages
-│   ├── auth/            ← Login/register pages
-│   ├── page.tsx         ← Landing page
-│   └── layout.tsx       ← Root layout
-├── components/          ← Reusable React components
-├── public/              ← Static assets (images, fonts)
-├── package.json
-├── tsconfig.json
+apps/web/
+├── src/
+│   ├── middleware.ts    ← JWT validation on every request
+│   ├── app/             ← Next.js App Router (pages + API routes)
+│   │   ├── page.tsx     ← Landing page
+│   │   ├── layout.tsx   ← Root HTML + service worker
+│   │   ├── globals.css  ← Tailwind + design tokens
+│   │   ├── auth/        ← Login, register, profile
+│   │   ├── dashboard/   ← Protected pages (query, documents, vessels)
+│   │   └── api/         ← REST endpoints (/api/documents, /api/query, etc.)
+│   ├── components/      ← React components (UI + layout)
+│   └── lib/             ← Utilities & server logic
+│       ├── db/          ← Drizzle ORM (imports from @nautos/db)
+│       ├── auth/        ← JWT sign/verify
+│       ├── clients/     ← S3, Redis, Worker API
+│       └── server/      ← Rate limiting, multi-tenancy
+├── __tests__/           ← Vitest tests
+├── public/              ← Static assets
+├── package.json         ← Includes @nautos/db dependency
+├── tsconfig.json        ← Path alias: @/* → src/*
 ├── next.config.ts
-└── Dockerfile           ← Frontend build image
-```
-
-**What NOT to edit here:**
-- No API logic (that's in `services/api/`)
-- No Python code
-- No database queries (those are in `services/api/`)
-
----
-
-### `services/api/`
-**Next.js REST API** — All backend endpoints and server-side logic.
-
-```
-services/api/
-├── src/app/api/         ← REST endpoints
-│   ├── documents/       ← GET/POST/DELETE documents
-│   ├── query/           ← Execute AI queries
-│   ├── chat/            ← Chat sessions
-│   ├── auth/            ← Authentication
-│   ├── equipment/       ← Equipment inventory
-│   └── health/          ← Service health check
-├── src/lib/             ← Utilities (server-side only)
-│   ├── db/              ← Drizzle ORM queries
-│   ├── auth/            ← JWT validation
-│   ├── clients/         ← S3, Redis, Worker API calls
-│   └── server/          ← HTTP helpers, rate limiting
-├── middleware.ts        ← Auth routing
-├── package.json
-├── tsconfig.json
-└── Dockerfile           ← API build image
+└── Dockerfile           ← Production build
 ```
 
 **What lives here:**
+- All UI pages + components
 - All REST endpoints (`/api/*`)
-- Database queries (Drizzle ORM)
-- Auth logic (JWT validation)
-- Calls to external services
+- Database access (via @nautos/db)
+- Auth logic (JWT)
+- External service clients
 
 **What does NOT live here:**
-- React components (that's frontend/)
-- Python code (that's worker/)
-- Database migrations (that's db/)
+- Python code (that's apps/worker/)
+- Database migrations (that's packages/db/)
+- Raw SQL (that's packages/db/)
 
 ---
 
-### `services/worker/`
-**Python async processing** — Background jobs, OCR, embeddings, RAG, LLM.
+### `apps/worker/`
+**Python FastAPI + Celery** — Async processing, OCR, embeddings, RAG, LLM.
 
 ```
-services/worker/
+apps/worker/
 ├── app/
-│   ├── main.py          ← FastAPI app
-│   ├── celery_app.py    ← Task queue
-│   ├── config.py        ← Settings & env vars
+│   ├── main.py          ← FastAPI app + routes
+│   ├── celery_app.py    ← Celery instance (Redis broker)
+│   ├── config.py        ← Settings & all env vars
 │   ├── routes/          ← FastAPI endpoints
-│   ├── tasks/           ← Celery tasks (wrappers only)
-│   │   ├── ingestion.py
-│   │   └── query.py
-│   └── services/        ← Business logic
+│   │   └── query.py     ← POST /api/query/stream (SSE)
+│   ├── tasks/           ← Celery background tasks
+│   │   ├── ingestion.py ← ingest_document (full PDF pipeline)
+│   │   └── query.py     ← run_query (async batch queries)
+│   └── services/        ← Pure business logic
 │       ├── ingestion/   ← OCR, chunking, embeddings
 │       ├── retrieval/   ← Search, vectordb, RAG, LLM
-│       └── db.py        ← Database operations
-├── tests/               ← Pytest tests
-├── pyproject.toml
-└── Dockerfile           ← Worker build image
+│       ├── privacy.py   ← PII stripping
+│       └── db.py        ← Database helpers
+├── pyproject.toml       ← Python dependencies
+├── Dockerfile           ← Builds both worker-api & worker-celery
+└── README.md
 ```
 
 **Clear boundary:**
-- `services/worker/app/services/` = pure business logic (no external wrappers)
-- `services/worker/app/tasks/` = Celery task wrappers only
-- `services/worker/app/routes/` = FastAPI endpoint wrappers only
+- `app/services/` = pure logic (reusable from anywhere)
+- `app/tasks/` = Celery decorators + task wrappers
+- `app/routes/` = FastAPI decorators + endpoint wrappers
 
 ---
 
-## DB/ — DATABASE MIGRATIONS
+## PACKAGES/ — SHARED CODE
+
+### `packages/db/`
+**Database schema & migrations** — Single source of truth.
 
 ```
-db/
-└── migrations/
-    ├── 001_initial_schema.sql       ← Tables, constraints
-    ├── 002_hnsw_indexes.sql         ← Vector search indexes
-    └── 003_chat_sessions.sql        ← Chat history tables
+packages/db/
+├── src/
+│   ├── index.ts         ← Exports schema + utilities
+│   └── schema.ts        ← Drizzle table definitions
+├── migrations/
+│   ├── 001_initial_schema.sql       ← All 14 tables + indexes
+│   ├── 002_hnsw_indexes.sql         ← Vector search indexes
+│   └── 003_chat_sessions.sql        ← Chat history tables
+├── package.json         ← Published as @nautos/db
+└── drizzle.config.ts    ← Migration config
 ```
 
-**Single source of truth** for database schema. Both Drizzle (`services/api/src/lib/db/schema.ts`) and the worker must match these.
+**What lives here:**
+- **Nothing else.** This is schema + migrations only.
+- `apps/web` imports the schema: `import { schema } from "@nautos/db"`
+- `apps/worker` reads migrations from this package
 
----
-
-## INFRA/ — DEPLOYMENT CONFIGS
-
-```
-infra/
-├── docker-compose.yml       ← Development (all services)
-└── docker-compose.dev.yml   ← Alias for above
-```
-
-**How to use:**
-```bash
-docker compose -f infra/docker-compose.yml up     # Local dev
-docker compose -f infra/docker-compose.yml logs -f # Watch logs
-```
+**Why separate?**
+- Single source of truth (no duplication)
+- Both apps stay in sync
+- Easy migration versioning
 
 ---
 
@@ -146,11 +130,27 @@ docker compose -f infra/docker-compose.yml logs -f # Watch logs
 
 ```
 docs/
-├── STRUCTURE.md             ← This file (folder layout)
-├── API.md                   ← REST API endpoints reference
-├── DEPLOYMENT.md            ← How to deploy
-└── DEVELOPMENT.md           ← Local setup guide
+├── STRUCTURE.md         ← This file (folder layout)
+├── API.md               ← REST API endpoints
+├── DEVELOPMENT.md       ← Local setup guide
+└── DEPLOYMENT.md        ← Production deploy
 ```
+
+---
+
+## PNPM WORKSPACE
+
+```yaml
+# pnpm-workspace.yaml
+packages:
+  - "apps/*"
+  - "packages/*"
+```
+
+This makes:
+- `@nautos/db` importable from any app
+- Independent `node_modules` (hoisted at root)
+- Unified lockfile (`pnpm-lock.yaml`)
 
 ---
 
@@ -159,13 +159,14 @@ docs/
 When Claude makes changes:
 
 | Path | What changed | Why it matters |
-|------|--------------|-----------------|
-| `services/frontend/` | UI components, pages | Affects what users see |
-| `services/api/src/app/api/` | REST endpoints | Affects what frontend calls |
-| `services/api/src/lib/` | Database queries, auth | Affects backend logic |
-| `services/worker/app/services/` | OCR, embeddings, RAG | Affects document processing |
-| `services/worker/app/tasks/` | Background job wrappers | Affects job scheduling |
-| `db/migrations/` | Database schema | Affects data structure |
+|------|--------------|---|
+| `apps/web/src/app/` | Pages, API routes | Affects frontend & backend |
+| `apps/web/src/components/` | React components | Affects what users see |
+| `apps/web/src/lib/` | Database queries, auth | Affects backend logic |
+| `apps/worker/app/services/` | OCR, embeddings, RAG | Affects document processing |
+| `apps/worker/app/tasks/` | Background job logic | Affects job execution |
+| `packages/db/migrations/` | Database schema | Affects data structure |
+| `docker-compose.yml` | Deployment config | Affects how services run |
 | `docs/` | Documentation | Affects understanding |
 
 ---
@@ -174,26 +175,27 @@ When Claude makes changes:
 
 **Start development:**
 ```bash
-docker compose -f infra/docker-compose.yml up
+docker compose up
 ```
 
 **Where is the [thing]?**
-- UI pages? → `services/frontend/src/app/`
-- REST endpoint? → `services/api/src/app/api/`
-- Database query? → `services/api/src/lib/db/`
-- Document processing? → `services/worker/app/services/ingestion/`
-- LLM calls? → `services/worker/app/services/retrieval/llm.py`
-- Background jobs? → `services/worker/app/tasks/`
-- Database schema? → `db/migrations/`
-- Deployments? → `infra/docker-compose.yml`
+- UI pages? → `apps/web/src/app/`
+- REST endpoint? → `apps/web/src/app/api/`
+- Database query? → `apps/web/src/lib/db/`
+- Document processing? → `apps/worker/app/services/ingestion/`
+- LLM calls? → `apps/worker/app/services/retrieval/llm.py`
+- Background jobs? → `apps/worker/app/tasks/`
+- Database schema? → `packages/db/migrations/`
+- Deployments? → `docker-compose.yml`
 
 ---
 
-## IMPORTANT
+## IMPORTANT NOTES
 
-- **Don't edit old folders** (`nautos-app/`, `nautos-worker/`, `shared/`) — they're deprecated
-- **Source of truth** is `services/` + `db/` + `infra/`
+- **Source of truth** is `apps/` + `packages/` + `docker-compose.yml`
+- **pnpm is required** (not npm, not yarn)
 - **When the team grows**, this structure scales:
-  - Separate CI/CD per service
-  - Independent deployments
-  - Clear team boundaries (frontend owns `services/frontend/`, backend owns `services/api/` + `services/worker/`)
+  - Add new apps: `apps/new-service/`
+  - Add new packages: `packages/new-lib/`
+  - Independent deployments per app
+  - Clear team boundaries (frontend owns `apps/web/`, backend owns `apps/worker/`)

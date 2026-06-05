@@ -14,7 +14,7 @@ Severity ratings:
 
 ### C1. Ingestion re-runs duplicate embeddings (we already see orphans)
 
-**File:** `nautos-worker/app/tasks/ingestion.py`
+**File:** `apps/worker/app/tasks/ingestion.py`
 
 If ingestion fails partway (e.g. embeddings stored but Elasticsearch index fails), the Celery retry runs the whole pipeline again. The new run inserts NEW embeddings rather than checking for or replacing existing ones. After 3 retries, the document has 3× chunks in pgvector.
 
@@ -32,7 +32,7 @@ Or make the inserts idempotent with `ON CONFLICT (document_id, chunk_index) DO U
 
 ### C2. Vessel ID accepted from client without tenant ownership check
 
-**File:** `nautos-app/src/app/api/documents/upload/route.ts` (and equipment route)
+**File:** `apps/web/src/app/api/documents/upload/route.ts` (and equipment route)
 
 The upload route accepts `vesselId` from the request body and inserts it into the document row — but never verifies the vessel belongs to the user's tenant.
 
@@ -81,7 +81,7 @@ If anything between steps 3 and 6 throws, the user message is in the DB without 
 
 ### C4. Chat history fetch has no LIMIT
 
-**File:** `nautos-app/src/app/api/query/route.ts:57-61`
+**File:** `apps/web/src/app/api/query/route.ts:57-61`
 
 ```ts
 const prior = await db
@@ -101,7 +101,7 @@ The worker truncates to last 10 turns (`MAX_HISTORY_TURNS`), but the DB query an
 
 ### H1. Documents list endpoint has no LIMIT or pagination
 
-**File:** `nautos-app/src/app/api/documents/route.ts`
+**File:** `apps/web/src/app/api/documents/route.ts`
 
 A tenant with 10K documents pulls all 10K on every page load. The frontend has a `<Table>` with no virtualization, so the browser will lock up rendering it.
 
@@ -111,7 +111,7 @@ A tenant with 10K documents pulls all 10K on every page load. The frontend has a
 
 ### H2. Elasticsearch `index_chunks` doesn't dedupe either
 
-**File:** `nautos-worker/app/services/retrieval/search.py:46-63`
+**File:** `apps/worker/app/services/retrieval/search.py:46-63`
 
 Same issue as C1 but on the ES side. Re-ingestion appends. Each chunk should have a deterministic `_id` (e.g. `f"{document_id}:{chunk_index}"`) so the bulk index uses upsert semantics.
 
@@ -127,7 +127,7 @@ actions.append({"index": {
 
 ### H3. Ingestion task retries forever-ish on permanent errors
 
-**File:** `nautos-worker/app/tasks/ingestion.py:96-99`
+**File:** `apps/worker/app/tasks/ingestion.py:96-99`
 
 ```python
 except Exception as exc:
@@ -143,7 +143,7 @@ This retries on EVERY exception — including permanent ones like "S3 key not fo
 
 ### H4. Groq TPM cap will hit users in production
 
-**File:** `nautos-worker/app/services/retrieval/llm.py`
+**File:** `apps/worker/app/services/retrieval/llm.py`
 
 Groq's free tier is 12K tokens-per-minute for `llama-3.3-70b-versatile`. Our requests are `input + max_tokens`. For a 5-page doc, we already use ~5K input + 4K max_tokens = 9K per request. Two concurrent users blow the cap.
 
@@ -162,10 +162,10 @@ The worker's friendly_error_message handles the surfacing, but production users 
 
 | File | Line | What |
 |------|------|------|
-| `lib/auth/session.ts` | inside `verifyToken` | Returns null on any JWT error — fine for auth but hides config issues |
-| `vectordb.py` | master library try/except | Hides DB errors as "empty master library" |
-| `chat-interface.tsx` | sessions fetch | Catches network errors silently |
-| `sessions-sidebar.tsx` | loadSessions | Catches network errors silently |
+| `apps/web/src/lib/auth/session.ts` | inside `verifyToken` | Returns null on any JWT error — fine for auth but hides config issues |
+| `apps/worker/app/services/retrieval/vectordb.py` | master library try/except | Hides DB errors as "empty master library" |
+| `apps/web/src/components/chat/chat-interface.tsx` | sessions fetch | Catches network errors silently |
+| `apps/web/src/components/layout/sessions-sidebar.tsx` | loadSessions | Catches network errors silently |
 
 The frontend ones cause confusing UX (sessions never load and user has no idea why). The vectordb one could mask real bugs.
 
@@ -183,7 +183,7 @@ When Groq is down or rate-limited, the request fails. We have `LLMService` facto
 
 ### H7. JWT default secret is checkable from source
 
-**File:** `nautos-app/src/middleware.ts:9` and `lib/auth/index.ts`
+**File:** `apps/web/src/middleware.ts:9` and `lib/auth/index.ts`
 
 ```ts
 const JWT_SECRET = new TextEncoder().encode(
@@ -205,7 +205,7 @@ The dev-default is in source. If someone deploys to prod without setting `JWT_SE
 
 ### M2. `docType` and `scope` aren't validated against enums
 
-The upload route accepts any string for `docType`. Add a Zod enum check matching `DOC_TYPES` from `lib/constants.ts`.
+The upload route accepts any string for `docType`. Add a Zod enum check matching `DOC_TYPES` from `apps/web/src/lib/constants.ts`.
 
 ### M3. No connection pool size monitoring
 
@@ -231,7 +231,7 @@ We saw 3 "Failed" MAIN AIR COMPRESSOR docs from earlier tests. No way for the us
 
 ### M8. SSE stream wrapping risks if client disconnects
 
-`wrapStreamForPersistence` in `/api/query/route.ts` reads the upstream worker SSE in a `start()` callback. If the client disconnects mid-stream, the worker keeps streaming and we keep reading until done — then save a partial-but-saved assistant message. Should detect disconnect and cancel the upstream.
+`wrapStreamForPersistence` in `apps/web/src/app/api/query/route.ts` reads the upstream worker SSE in a `start()` callback. If the client disconnects mid-stream, the worker keeps streaming and we keep reading until done — then save a partial-but-saved assistant message. Should detect disconnect and cancel the upstream.
 
 ### M9. CSRF protection relies entirely on SameSite=lax cookies
 

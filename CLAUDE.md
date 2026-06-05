@@ -27,11 +27,9 @@ to maintain equipment that costs millions.
 ## Stack at a glance
 
 ```
-services/frontend/   Next.js 15 frontend UI only
-services/api/        Next.js 15 REST API endpoints + server logic
-services/worker/     Python 3.12 FastAPI + Celery — OCR, embeddings, RAG, LLM, Excel export
-db/migrations/       SQL migrations (single source of truth for schema)
-infra/               Docker Compose configs
+apps/web/            Next.js 15 frontend + API routes + auth
+apps/worker/         Python 3.12 FastAPI + Celery — OCR, embeddings, RAG, LLM, Excel export
+packages/db/         SQL migrations + Drizzle schema (single source of truth)
 ```
 
 External services:
@@ -49,14 +47,14 @@ External services:
 
 These keep the system safe and correct. Don't violate them.
 
-1. **Every API route under `nautos-app/src/app/api/`** (except `auth/*` and `health`) calls `requireTenant(req)` from `@/lib/server/api-helpers` first. No exceptions.
+1. **Every API route under `apps/web/src/app/api/`** (except `auth/*` and `health`) calls `requireTenant(req)` from `@/lib/server/api-helpers` first. No exceptions.
 2. **Every DB query — Drizzle or raw SQL — filters by `tenantId`/`tenant_id`.** Cross-tenant data leaks are the #1 thing to prevent.
 3. **Vector embeddings are 1024-dimensional.** Voyage's `voyage-3-large` outputs 1024. Postgres schema is `vector(1024)`. If you ever change embedding model, you must also change the schema and re-embed every document. Don't change one without the other.
 4. **Worker `services/` is pure business logic.** `tasks/` are Celery wrappers, `routes/` are FastAPI wrappers. Don't put logic in tasks or routes.
 5. **`config.py` is the only place that reads env vars in the worker.** Everything else imports `settings`.
-6. **`shared/migrations/*.sql` is the source of truth for the schema.** Both Drizzle (`nautos-app/src/lib/db/schema.ts`) and the worker must match. If you change one, change them all.
+6. **`packages/db/migrations/*.sql` is the source of truth for the schema.** Both Drizzle (`apps/web/src/lib/db/schema.ts`) and the worker must match. If you change one, change them all.
 7. **Never commit `.env`** — it's gitignored. `.env.example` is the template.
-8. **LLM provider is swappable via `LLM_PROVIDER` env var.** Add new providers to the `_PROVIDERS` registry in `services/retrieval/llm.py`, don't hardcode anywhere.
+8. **LLM provider is swappable via `LLM_PROVIDER` env var.** Add new providers to the `_PROVIDERS` registry in `apps/worker/app/services/retrieval/llm.py`, don't hardcode anywhere.
 
 ---
 
@@ -73,20 +71,20 @@ Things that already cost us hours — don't relearn them.
 
 ### LLM gotchas
 
-- **Groq's TPM accounting includes `max_tokens` reserved for output**, not just input. We capped `max_tokens=4000` in `services/retrieval/llm.py` so that a ~5K-token input still fits under the 12K TPM free-tier cap.
+- **Groq's TPM accounting includes `max_tokens` reserved for output**, not just input. We capped `max_tokens=4000` in `apps/worker/app/services/retrieval/llm.py` so that a ~5K-token input still fits under the 12K TPM free-tier cap.
 - **Groq's free tier is per-minute cumulative across requests.** Multiple test attempts in quick succession compound and hit the cap even if any single request is small.
 - **Gemini free tier behaved oddly with auto-generated GCP projects** — got `limit: 0` quota errors. A fresh AI Studio key in a fresh project worked. If we ever switch back to Gemini, create the key in a clean project.
 - **Llama 3.3 70B will hallucinate part numbers under pressure** more than Claude. For production, switch `LLM_PROVIDER=anthropic`. The provider abstraction in `llm.py` makes this a one-env-var change.
 
 ### RAG quirks
 
-- **RRF scores in `services/retrieval/rag.py` cap at ~`1/(RRF_K+1)` per source** (~0.016 with `RRF_K=60`). A chunk that hits both keyword + vector search at rank 0 maxes at ~0.033, boosted to ~0.038. The `SCORE_THRESHOLD` is 0.005 — set it higher and you filter out everything. The comment explains the math.
+- **RRF scores in `apps/worker/app/services/retrieval/rag.py` cap at ~`1/(RRF_K+1)` per source** (~0.016 with `RRF_K=60`). A chunk that hits both keyword + vector search at rank 0 maxes at ~0.033, boosted to ~0.038. The `SCORE_THRESHOLD` is 0.005 — set it higher and you filter out everything. The comment explains the math.
 - **Document-scoped mode bypasses RRF, top-K, and the score threshold entirely.** When `document_id` is in the query, the worker retrieves all chunks ordered by page and feeds the whole document to the LLM. Used by "Ask about this document" and the Excel export.
 
 ### Frontend quirks
 
 - **`history.replaceState` doesn't reliably keep React state stable** with Next.js App Router. The scope pill on `/dashboard/query` disappears on the first message of a doc-scoped chat. We worked around it by locking the initial scope in `useState` inside `ChatInterface`, but it still flickers briefly. After page refresh it's fine.
-- **Custom DOM event `nautos:sessions-updated`** is dispatched by `ChatInterface` after session create / stream complete / rename / delete. `SessionsSidebar` listens and refetches. Defined in `components/chat/chat-interface.tsx`.
+- **Custom DOM event `nautos:sessions-updated`** is dispatched by `ChatInterface` after session create / stream complete / rename / delete. `SessionsSidebar` listens and refetches. Defined in `apps/web/src/components/chat/chat-interface.tsx`.
 - **`/dashboard/query/[sessionId]/page.tsx` mounts a fresh `ChatInterface`** with `scopedDocumentId` from the DB-stored session, not from URL params. The session's `document_id` is the authoritative source.
 
 ---
@@ -95,14 +93,14 @@ Things that already cost us hours — don't relearn them.
 
 | ID | What | Where |
 |----|------|-------|
-| **C1** | Ingestion re-runs duplicate embeddings (we see 33 vectors vs 6 ES chunks) | `nautos-worker/app/tasks/ingestion.py` — needs idempotency |
-| **C2** | `vesselId` accepted from client without tenant ownership check | `nautos-app/src/app/api/documents/upload/route.ts`, `equipment/route.ts` |
+| **C1** | Ingestion re-runs duplicate embeddings (we see 33 vectors vs 6 ES chunks) | `apps/worker/app/tasks/ingestion.py` — needs idempotency |
+| **C2** | `vesselId` accepted from client without tenant ownership check | `apps/web/src/app/api/documents/upload/route.ts`, `equipment/route.ts` |
 | **C3** | Multi-step writes have no transactions — orphan risk on partial failure | `upload/route.ts`, `query/route.ts` |
 | **C4** | Chat history fetch has no LIMIT — sends entire conversation just to truncate worker-side | `query/route.ts:57-61` |
 | **H1** | Documents list endpoint has no pagination | `documents/route.ts` |
-| **H2** | Elasticsearch `index_chunks` doesn't dedupe either (same root as C1) | `services/retrieval/search.py` |
-| **H4** | No automatic LLM fallback when Groq hits TPM cap | `services/retrieval/llm.py` |
-| **H7** | JWT dev-default secret is in source code — single env var miss = full auth bypass | `nautos-app/src/middleware.ts`, `lib/auth/index.ts` |
+| **H2** | Elasticsearch `index_chunks` doesn't dedupe either (same root as C1) | `apps/worker/app/services/retrieval/search.py` |
+| **H4** | No automatic LLM fallback when Groq hits TPM cap | `apps/worker/app/services/retrieval/llm.py` |
+| **H7** | JWT dev-default secret is in source code — single env var miss = full auth bypass | `apps/web/src/middleware.ts`, `lib/auth/index.ts` |
 
 Full severity-rated list and fix suggestions in `AUDIT.md`.
 
@@ -142,8 +140,8 @@ docker compose logs -f app                         # watch Next.js
 docker compose exec postgres psql -U nautos_user -d nautos    # DB shell
 docker compose restart worker-api worker-celery    # after llm.py changes
 docker compose build worker-api worker-celery      # after pyproject.toml changes
-cd nautos-app && npx tsc --noEmit                  # TypeScript type check
+cd apps/web && npx tsc --noEmit                    # TypeScript type check
 ```
 
 If a Postgres query is needed and you can't access the container, the schema is in
-`shared/migrations/001_initial_schema.sql` + `003_chat_sessions.sql`.
+`packages/db/migrations/001_initial_schema.sql` + `003_chat_sessions.sql`.

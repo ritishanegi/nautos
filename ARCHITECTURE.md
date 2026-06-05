@@ -6,25 +6,27 @@
 
 ## 1. The big picture
 
-NAUTOS AI is split into **3 deployable services** plus **1 shared schema folder**:
+NAUTOS AI is split into **3 deployable services** plus **1 shared schema package**:
 
 ```
 nautos/
-├── nautos-app/         ← Next.js (frontend + API routes + auth)        [TypeScript]
-├── nautos-worker/      ← Python (OCR, embeddings, RAG, ML tasks)        [Python]
-├── shared/             ← Database migrations used by both                [SQL]
+├── apps/
+│   ├── web/            ← Next.js (frontend + API routes + auth)        [TypeScript]
+│   └── worker/         ← Python (OCR, embeddings, RAG, ML tasks)        [Python]
+├── packages/
+│   └── db/             ← Database schema & migrations (shared)           [SQL]
 ├── docker-compose.yml  ← Spins up: postgres, redis, elasticsearch, all 3 services
 └── Makefile            ← Convenience commands (make up, make seed, etc.)
 ```
 
 ### Why split this way?
 
-- **`nautos-app`** does everything user-facing: pages, auth, REST APIs, uploads. JavaScript ecosystem is best for this.
-- **`nautos-worker`** does ML-heavy work: OCR, embeddings, vector search, LLM calls. Python has the libraries.
-- **`shared/`** holds the database schema both services connect to.
+- **`apps/web`** does everything user-facing: pages, auth, REST APIs, uploads. JavaScript ecosystem is best for this.
+- **`apps/worker`** does ML-heavy work: OCR, embeddings, vector search, LLM calls. Python has the libraries.
+- **`packages/db`** holds the database schema and migrations both services connect to.
 
 The two services **never share code**. They communicate only via:
-1. **HTTP** — `nautos-app` calls `nautos-worker` for ingestion + query
+1. **HTTP** — `apps/web` calls `apps/worker` for ingestion + query
 2. **PostgreSQL** — both read/write the same tables
 3. **Redis** — Celery queue (worker only) + rate limiting (app only)
 4. **S3** — both read/write document files
@@ -36,13 +38,13 @@ The two services **never share code**. They communicate only via:
 ```
 1.  User drops PDF in browser
        ↓
-2.  nautos-app /api/documents/upload  (Next.js route)
+2.  apps/web /api/documents/upload  (Next.js route)
        ↓ uploads to S3
        ↓ inserts row in `documents` table (status: pending)
        ↓ inserts row in `ingestion_jobs` table (status: queued)
-       ↓ calls nautos-worker /tasks/ingest
+       ↓ calls apps/worker /tasks/ingest
        ↓
-3.  nautos-worker queues Celery task `ingest_document`
+3.  apps/worker queues Celery task `ingest_document`
        ↓
 4.  Celery worker picks up the task and runs the pipeline:
        a) Download PDF from S3
@@ -61,10 +63,10 @@ The two services **never share code**. They communicate only via:
 ```
 1.  User types question in /dashboard/query
        ↓
-2.  nautos-app /api/query (Next.js route)
-       ↓ forwards to nautos-worker /api/query/stream
+2.  apps/web /api/query (Next.js route)
+       ↓ forwards to apps/worker /api/query/stream
        ↓
-3.  nautos-worker RAGService runs the pipeline:
+3.  apps/worker RAGService runs the pipeline:
        a) Embed the question (Voyage AI)
        b) Keyword search (Elasticsearch BM25)
        c) Vector search (pgvector cosine similarity)
@@ -79,10 +81,10 @@ The two services **never share code**. They communicate only via:
 
 ---
 
-## 4. `nautos-app/` — the Next.js frontend & API
+## 4. `apps/web/` — the Next.js frontend & API
 
 ```
-nautos-app/
+apps/web/
 ├── src/
 │   ├── middleware.ts                        ← JWT check on every request, injects x-tenant-id header
 │   │
@@ -166,24 +168,24 @@ nautos-app/
 └── tailwind.config.ts                       ← Design tokens for shadcn/ui
 ```
 
-### Key rules for `nautos-app`
+### Key rules for `apps/web`
 
 - **Every API route** must call `requireTenant(req)` first (from `lib/api-helpers.ts`). This pulls the tenant ID from middleware-injected headers and returns 401 if missing.
 - **Every DB query** must filter by `tenantId`. The `requireTenant()` helper makes this hard to forget.
-- **`lib/db/schema.ts`** must stay in sync with `shared/migrations/*.sql`. If you change one, change the other.
+- **`lib/db/schema.ts`** must stay in sync with `packages/db/migrations/*.sql`. If you change one, change the other.
 - **File uploads + SSE streaming** stay in plain REST routes. CRUD operations stay in plain REST routes. (We removed the unused tRPC layer.)
 
 ---
 
-## 5. `nautos-worker/` — the Python ML worker
+## 5. `apps/worker/` — the Python ML worker
 
 This service has **two roles** that run side-by-side:
 
-1. **FastAPI HTTP server** (`worker-api` container) — receives dispatch requests from nautos-app
+1. **FastAPI HTTP server** (`worker-api` container) — receives dispatch requests from apps/web
 2. **Celery worker** (`worker-celery` container) — pulls tasks from Redis and runs them
 
 ```
-nautos-worker/
+apps/worker/
 ├── app/
 │   ├── main.py                              ← FastAPI app — exposes /tasks/ingest and /api/query/stream
 │   ├── celery_app.py                        ← Celery instance (Redis broker)
@@ -219,26 +221,29 @@ nautos-worker/
 └── README.md                                ← Worker-specific docs
 ```
 
-### Key rules for `nautos-worker`
+### Key rules for `apps/worker`
 
 - **`services/`** = pure logic. No HTTP, no Celery decorators. Reusable from anywhere.
 - **`tasks/`** = Celery-decorated functions. They call services. Don't put logic here.
 - **`routes/`** = FastAPI endpoints. They call services or queue tasks. Don't put logic here.
 - **`config.py`** is the ONLY place that reads `os.environ` or env files. Everything else imports `settings`.
-- **`services/rag.py`** is the core IP — the 12-step hybrid retrieval pipeline. Don't touch unless you understand it end-to-end.
+- **`services/retrieval/rag.py`** is the core IP — the 12-step hybrid retrieval pipeline. Don't touch unless you understand it end-to-end.
 
 ---
 
-## 6. `shared/` — the database schema
+## 6. `packages/db/` — the database schema
 
 ```
-shared/
+packages/db/
+├── src/
+│   ├── index.ts                             ← Exports schema and utilities
+│   └── schema.ts                            ← Drizzle table definitions
 └── migrations/
     ├── 001_initial_schema.sql               ← All 14 tables + indexes
     └── 002_hnsw_indexes.sql                 ← Vector indexes (run after first data load)
 ```
 
-**These SQL files are the source of truth for the database.** Both `nautos-app/src/lib/db/schema.ts` (Drizzle) and `nautos-worker/app/services/db.py` (raw SQL) must match what's defined here.
+**These SQL files are the source of truth for the database.** Both `apps/web/src/lib/db/schema.ts` (Drizzle) and `apps/worker/app/services/db.py` (raw SQL) must match what's defined here.
 
 ### The 14 tables (and what they're for)
 
@@ -261,7 +266,7 @@ shared/
 
 ### The golden rule
 
-**Every tenant-scoped table has a `tenant_id` column.** Every query must filter by it. Cross-tenant data leaks are the #1 thing to prevent. The `requireTenant()` helper in `nautos-app/src/lib/api-helpers.ts` makes this hard to forget.
+**Every tenant-scoped table has a `tenant_id` column.** Every query must filter by it. Cross-tenant data leaks are the #1 thing to prevent. The `requireTenant()` helper in `apps/web/src/lib/api-helpers.ts` makes this hard to forget.
 
 ---
 
@@ -280,7 +285,7 @@ docker-compose.yml spins up 6 containers:
     ┌────┴──────────────────────┴───────────────────────┴────┐
     │                                                         │
 ┌───┴───────────┐  ┌─────────────────┐  ┌────────────────┐
-│  nautos-app   │  │   worker-api    │  │ worker-celery  │
+│  apps/web     │  │   worker-api    │  │ worker-celery  │
 │   (Next.js)   │──→│   (FastAPI)     │  │  (background)  │
 │  port 3001    │  │   port 8000     │  │  (no port)     │
 └───────────────┘  └─────────────────┘  └────────────────┘
@@ -291,7 +296,7 @@ docker-compose.yml spins up 6 containers:
 ```
 
 **Communication paths:**
-- `nautos-app` → `worker-api` (HTTP) — for dispatching ingest + query
+- `apps/web` → `worker-api` (HTTP) — for dispatching ingest + query
 - `worker-api` → Redis (queue) — pushes tasks for `worker-celery` to pick up
 - `worker-celery` ← Redis (queue) — pulls and executes tasks
 - All three services → `postgres`, `redis`, `elasticsearch`, S3
@@ -328,12 +333,12 @@ All in `.env` at the repo root. Loaded by Docker Compose into all containers.
 
 | Symptom | Look here |
 |---------|-----------|
-| Login fails | `nautos-app/src/app/api/auth/login/route.ts` + `lib/auth.ts` |
-| Upload returns 401 | `nautos-app/src/middleware.ts` — JWT not being injected |
-| Upload returns 500 | `nautos-app/src/app/api/documents/upload/route.ts` + S3 credentials |
+| Login fails | `apps/web/src/app/api/auth/login/route.ts` + `lib/auth.ts` |
+| Upload returns 401 | `apps/web/src/middleware.ts` — JWT not being injected |
+| Upload returns 500 | `apps/web/src/app/api/documents/upload/route.ts` + S3 credentials |
 | Document stuck in "pending" | `worker-celery` logs — is the task even running? |
 | Document stuck in "processing" | `worker-celery` logs — which step failed? OCR, embed, or index? |
-| Query returns "no results" | `nautos-worker/app/services/rag.py` — score threshold may be too high |
+| Query returns "no results" | `apps/worker/app/services/retrieval/rag.py` — score threshold may be too high |
 | Query crashes | LLM API key missing or wrong provider in `LLM_PROVIDER` |
 | Tenant sees another tenant's data | **Critical security bug** — find the route missing `requireTenant()` |
 | Vector dimension mismatch | `schema.ts` says 1024, voyage-3-large outputs 1024. Anywhere else and you're broken. |

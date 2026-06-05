@@ -72,10 +72,10 @@ Quick reference for all REST endpoints.
 
 All endpoints are defined in:
 ```
-services/api/src/app/api/[endpoint]/route.ts
+apps/web/src/app/api/[endpoint]/route.ts
 ```
 
 For example:
-- `/api/documents` → `services/api/src/app/api/documents/route.ts`
-- `/api/query` → `services/api/src/app/api/query/route.ts`
-- `/api/chat/sessions` → `services/api/src/app/api/chat/sessions/route.ts`
+- `/api/documents` → `apps/web/src/app/api/documents/route.ts`
+- `/api/query` → `apps/web/src/app/api/query/route.ts`
+- `/api/chat/sessions` → `apps/web/src/app/api/chat/sessions/route.ts`

@@ -16,14 +16,14 @@ Get the project running locally.
 
 ```bash
 # From repo root
-docker compose -f infra/docker-compose.yml up -d
+docker compose up -d
 
 # Watch logs
-docker compose -f infra/docker-compose.yml logs -f app      # Next.js frontend + API
-docker compose -f infra/docker-compose.yml logs -f worker-celery  # Background jobs
+docker compose logs -f app      # Next.js frontend + API
+docker compose logs -f worker-celery  # Background jobs
 
 # Stop everything
-docker compose -f infra/docker-compose.yml down
+docker compose down
 ```
 
 The app starts at **http://localhost:3000**
@@ -55,15 +55,17 @@ docker compose exec worker-celery celery -A app.celery_app inspect active
 
 **Port 3000 already in use?**
 ```bash
-docker compose -f infra/docker-compose.yml down  # Stop containers
-# Or change port in infra/docker-compose.yml: 3000:3000 → 3001:3000
+# Stop containers
+docker compose down
+
+# Or change port in docker-compose.yml: 3000:3000 → 3001:3000
 ```
 
 **Database migration failed?**
 ```bash
 # Reset database (deletes all data)
 docker volume rm nautos_pgdata
-docker compose -f infra/docker-compose.yml up postgres
+docker compose up postgres  # Start only postgres
 ```
 
 **Node modules out of sync?**
@@ -84,9 +86,9 @@ docker compose restart worker-api worker-celery
 ## File Structure
 
 When working locally, remember:
-- **Frontend code:** `services/frontend/src/`
-- **API endpoints:** `services/api/src/app/api/`
-- **Worker jobs:** `services/worker/app/`
+- **Frontend code:** `apps/web/src/app/` + `apps/web/src/components/`
+- **API endpoints:** `apps/web/src/app/api/`
+- **Worker jobs:** `apps/worker/app/`
 - **Database schema:** `db/migrations/`
 
 See `docs/STRUCTURE.md` for full layout.

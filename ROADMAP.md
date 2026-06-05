@@ -46,7 +46,7 @@ Phase 4 (3h)   ─→ Excel Export (killer differentiator)
 
 ### Backend changes
 
-**`nautos-worker/app/services/retrieval/llm.py`**
+**`apps/worker/app/services/retrieval/llm.py`**
 - `max_tokens=2048` → `max_tokens=8000` (Llama 3.3 70B supports it)
 - `temperature=0.3` → `temperature=0.1` (less creative drift)
 - Strengthen `SYSTEM_PROMPT`:
@@ -56,17 +56,17 @@ Phase 4 (3h)   ─→ Excel Export (killer differentiator)
 
 ### Frontend changes
 
-**`nautos-app/package.json`** — add deps:
+**`apps/web/package.json`** — add deps:
 - `react-markdown` — markdown rendering
 - `remark-gfm` — tables, strikethrough, task lists
 - `react-syntax-highlighter` — code block highlighting
 
-**`nautos-app/src/components/chat/`** — new directory:
+**`apps/web/src/components/chat/`** — new directory:
 - `message.tsx` — renders an assistant message with markdown + copy button
 - `code-block.tsx` — code blocks with language label + copy
 - `markdown-table.tsx` — styled tables with "copy as CSV" button
 
-**`nautos-app/src/app/dashboard/query/page.tsx`** — replace plain `<div>` rendering with `<Message>` component.
+**`apps/web/src/app/dashboard/query/page.tsx`** — replace plain `<div>` rendering with `<Message>` component.
 
 ### Acceptance criteria
 
@@ -83,10 +83,10 @@ Phase 4 (3h)   ─→ Excel Export (killer differentiator)
 
 ### Backend changes
 
-**`nautos-worker/app/routes/query.py`**
+**`apps/worker/app/routes/query.py`**
 - Add `document_id: str | None = None` to `QueryRequest`
 
-**`nautos-worker/app/services/retrieval/rag.py`**
+**`apps/worker/app/services/retrieval/rag.py`**
 - Add `document_id` parameter to `stream_query()` and `query()`
 - When `document_id` is provided:
   - **Skip the hybrid search + RRF + score filter entirely**
@@ -94,23 +94,23 @@ Phase 4 (3h)   ─→ Excel Export (killer differentiator)
   - Order chunks by `page_number ASC, chunk_index ASC`
   - Build context with framing: *"You are answering about ONE specific document. The complete content of this document is below."*
 
-**`nautos-worker/app/services/retrieval/vectordb.py`**
+**`apps/worker/app/services/retrieval/vectordb.py`**
 - New method: `get_all_chunks_for_document(document_id, tenant_id) -> list[dict]`
 - SQL: `SELECT chunk_text, page_number, chunk_index FROM embeddings WHERE document_id = $1 AND tenant_id = $2 ORDER BY page_number, chunk_index`
 
 ### App-side changes
 
-**`nautos-app/src/app/api/query/route.ts`**
+**`apps/web/src/app/api/query/route.ts`**
 - Accept `documentId` in request body, forward to worker
 
-**`nautos-app/src/lib/clients/worker.ts`**
+**`apps/web/src/lib/clients/worker.ts`**
 - Add `documentId` to `streamQuery` params
 
-**`nautos-app/src/app/dashboard/documents/[id]/page.tsx`**
+**`apps/web/src/app/dashboard/documents/[id]/page.tsx`**
 - Add "Ask about this document" button (top-right, next to Download)
 - Clicking it navigates to `/dashboard/query?docId=<id>&docTitle=<title>`
 
-**`nautos-app/src/app/dashboard/query/page.tsx`**
+**`apps/web/src/app/dashboard/query/page.tsx`**
 - Read `docId` from URL search params
 - When present, show a pill at top: *"Asking about: [Document Title] × clear"*
 - Include `documentId` in `/api/query` request body
@@ -135,7 +135,7 @@ This is the architectural fix that solves Problems 3 and 4 properly. Phase 1's p
 
 ### Database (new migration)
 
-**`shared/migrations/003_chat_sessions.sql`** — new file:
+**`packages/db/migrations/003_chat_sessions.sql`** — new file:
 
 ```sql
 CREATE TABLE chat_sessions (
@@ -162,22 +162,22 @@ CREATE TABLE chat_messages (
 CREATE INDEX idx_chat_messages_session ON chat_messages(session_id, created_at);
 ```
 
-**`nautos-app/src/lib/db/schema.ts`** — add Drizzle table definitions matching the SQL.
+**`apps/web/src/lib/db/schema.ts`** — add Drizzle table definitions matching the SQL.
 
 ### New API endpoints
 
-**`nautos-app/src/app/api/chat/sessions/route.ts`**
+**`apps/web/src/app/api/chat/sessions/route.ts`**
 - `GET` — list current user's sessions (most recent first)
 - `POST` — create new session, returns id
 
-**`nautos-app/src/app/api/chat/sessions/[id]/route.ts`**
+**`apps/web/src/app/api/chat/sessions/[id]/route.ts`**
 - `GET` — fetch session + all messages
 - `PATCH` — rename session
 - `DELETE` — delete session
 
 ### Updates to existing query endpoint
 
-**`nautos-app/src/app/api/query/route.ts`**
+**`apps/web/src/app/api/query/route.ts`**
 - Accept `sessionId` in body
 - If provided, fetch last 10 messages from `chat_messages`
 - Pass `chat_history` array to worker
@@ -187,10 +187,10 @@ CREATE INDEX idx_chat_messages_session ON chat_messages(session_id, created_at);
 
 ### Worker updates
 
-**`nautos-worker/app/routes/query.py`**
+**`apps/worker/app/routes/query.py`**
 - Add `chat_history: list[dict] = []` to `QueryRequest` — each item `{role, content}`
 
-**`nautos-worker/app/services/retrieval/llm.py`** — each provider:
+**`apps/worker/app/services/retrieval/llm.py`** — each provider:
 - Update `stream_answer` and `get_answer` signatures to accept `chat_history`
 - Build messages array as: `[system, ...history, new_user_message]`
 - Groq: pass directly in `messages=`
@@ -199,16 +199,16 @@ CREATE INDEX idx_chat_messages_session ON chat_messages(session_id, created_at);
 
 ### Frontend
 
-**`nautos-app/src/app/dashboard/query/[sessionId]/page.tsx`** — new dynamic route
+**`apps/web/src/app/dashboard/query/[sessionId]/page.tsx`** — new dynamic route
 
-**`nautos-app/src/components/chat/sessions-sidebar.tsx`** — new component:
+**`apps/web/src/components/chat/sessions-sidebar.tsx`** — new component:
 - Lists past sessions grouped by Today / Yesterday / This week / Older
 - Click → navigate to `/dashboard/query/[sessionId]`
 - Active session highlighted
 - "+ New chat" button at top
 - Right-click context menu: Rename, Delete
 
-**`nautos-app/src/app/dashboard/query/page.tsx`** — refactor:
+**`apps/web/src/app/dashboard/query/page.tsx`** — refactor:
 - Move chat UI to a reusable `<ChatInterface>` component
 - This page becomes "new chat" (no sessionId yet — creates one on first message)
 
@@ -229,14 +229,14 @@ CREATE INDEX idx_chat_messages_session ON chat_messages(session_id, created_at);
 
 ### Backend
 
-**`nautos-worker/pyproject.toml`**
+**`apps/worker/pyproject.toml`**
 - Add `openpyxl>=3.1.0`
 
-**`nautos-worker/app/routes/documents.py`** — new file:
+**`apps/worker/app/routes/documents.py`** — new file:
 - `POST /api/documents/{document_id}/extract-table`
 - Body: `{description: str}` — e.g. "the parts list with part numbers, names, and quantities"
 
-**`nautos-worker/app/services/extraction.py`** — new file:
+**`apps/worker/app/services/extraction.py`** — new file:
 - `extract_table(document_id, description, tenant_id) -> bytes`
 - Retrieves ALL chunks for the document (same as Phase 2)
 - Prompts LLM with: *"Extract the table the user described as JSON. Schema: array of objects. Return ONLY valid JSON, no commentary."*
@@ -246,7 +246,7 @@ CREATE INDEX idx_chat_messages_session ON chat_messages(session_id, created_at);
 
 ### Frontend
 
-**`nautos-app/src/app/dashboard/documents/[id]/page.tsx`**
+**`apps/web/src/app/dashboard/documents/[id]/page.tsx`**
 - Add "Export table to Excel" button
 - Modal asks: "Describe what to extract" (with examples: "parts list", "maintenance schedule", "spare parts catalog")
 - Loading state while extraction runs (can take 10-30s)
