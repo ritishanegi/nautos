@@ -50,7 +50,7 @@ services:
 
   app:
     build:
-      context: ./apps/web    # Changed from ./nautos-app
+      context: ./nautos-app
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
@@ -63,19 +63,18 @@ services:
       - REDIS_HOST=redis
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     volumes:
-      - ./apps/web/src:/app/src          # Changed from ./nautos-app/src
-      - ./apps/web/public:/app/public
+      - ./nautos-app/src:/app/src
+      - ./nautos-app/public:/app/public
+      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
 
   worker-api:
     build:
-      context: ./apps/worker    # Changed from ./nautos-worker
+      context: ./nautos-worker
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
@@ -83,41 +82,35 @@ services:
     env_file:
       - .env
     environment:
-      - environment:
-      - DATABASE_URL=postgresql://${DB_USER:-nautos_user}:${DB_PASS:-nautos_dev_pass}@postgres:5432/${DB_NAME:-nautos}
+      - DATABASE_URL=postgresql://nautos_user:[REDACTED]@postgres:5432/nautos
       - REDIS_URL=redis://redis:6379/0
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     volumes:
-      - ./apps/worker/app:/worker/app
+      - ./nautos-worker/app:/worker/app
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
 
   worker-celery:
     build:
-      context: ./apps/worker    # Changed from ./nautos-worker
+      context: ./nautos-worker
       dockerfile: Dockerfile
     restart: unless-stopped
     command: celery -A app.celery_app:celery worker --loglevel=info --concurrency=2
     env_file:
       - .env
     environment:
-      - environment:
-      - DATABASE_URL=postgresql://${DB_USER:-nautos_user}:${DB_PASS:-nautos_dev_pass}@postgres:5432/${DB_NAME:-nautos}
+      - DATABASE_URL=postgresql://nautos_user:[REDACTED]@postgres:5432/nautos
       - REDIS_URL=redis://redis:6379/0
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     volumes:
-      - ./apps/worker/app:/worker/app
+      - ./nautos-worker/app:/worker/app
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      elasticsearch:
         condition: service_healthy
 
 volumes:
