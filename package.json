@@ -1,0 +1,9 @@
+{
+  "name": "nautos-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter ./apps/web dev",
+    "build": "pnpm -r build",
+    "db:push": "pnpm --filter ./packages/db push"
+  }
+}

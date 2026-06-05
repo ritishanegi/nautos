@@ -11,10 +11,15 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@nautos/db": "workspace:*",
+    "next": "15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "drizzle-orm": "^0.44.0"
   },
   "devDependencies": {
     "drizzle-kit": "^0.29.0",
     "typescript": "^5.0.0"
   }
+ 
 }
